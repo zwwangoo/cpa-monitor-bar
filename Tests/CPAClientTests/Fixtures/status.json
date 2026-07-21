@@ -1,0 +1,11 @@
+{
+  "running": true,
+  "sync_running": false,
+  "timezone": "Asia/Shanghai",
+  "cpa_public_url": null,
+  "cpa_request_log_access_enabled": false,
+  "last_error": null,
+  "last_warning": "fixture warning",
+  "last_status": "healthy",
+  "future_field": 1
+}

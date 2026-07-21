@@ -1,0 +1,67 @@
+import Foundation
+import CPAModels
+
+func quotaRemainingPercent(_ row: UsageQuotaRow) -> Double? {
+    let value: Double?
+    if let fraction = row.remainingFraction {
+        value = fraction * 100
+    } else if let usedPercent = row.usedPercent {
+        value = 100 - usedPercent
+    } else if let remaining = row.remaining, let limit = row.limit, limit > 0 {
+        value = remaining / limit * 100
+    } else if let used = row.used, let limit = row.limit, limit > 0 {
+        value = 100 - used / limit * 100
+    } else if row.limitReached == true {
+        value = 0
+    } else {
+        value = nil
+    }
+    return value.map { min(max($0, 0), 100) }
+}
+
+func dashboardShortTime(_ rawValue: String?) -> String {
+    guard let rawValue else { return "—" }
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let date = formatter.date(from: rawValue)
+        ?? ISO8601DateFormatter().date(from: rawValue)
+    return date?.formatted(date: .omitted, time: .shortened) ?? rawValue
+}
+
+func compactLatency(_ milliseconds: Int?) -> String {
+    guard let milliseconds else { return "—" }
+    guard abs(milliseconds) >= 1_000 else { return "\(milliseconds)ms" }
+    return String(format: "%.1fs", Double(milliseconds) / 1_000)
+}
+
+func eventLatencyText(ttftMS: Int?, latencyMS: Int?) -> String {
+    "\(compactLatency(ttftMS))/\(compactLatency(latencyMS))"
+}
+
+func displayAPIKey(_ rawValue: String?) -> String {
+    guard let value = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !value.isEmpty else { return "—" }
+    if value.contains("*") || value.contains("•") || value.count <= 8 {
+        return value
+    }
+    return "\(value.prefix(4))••••\(value.suffix(4))"
+}
+
+func eventCountSummary(totalCount: Int?) -> String {
+    "共 \((totalCount ?? 0).formatted()) 条"
+}
+
+func preferredText(_ values: String?...) -> String {
+    values.compactMap { value in
+        guard let value, !value.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return value
+    }.first ?? "未知"
+}
+
+func visibleAuthFiles(_ identities: [UsageIdentity]) -> [UsageIdentity] {
+    identities.filter { $0.disabled != true }
+}
+
+func authAccountName(_ identity: UsageIdentity) -> String {
+    preferredText(identity.displayName, identity.name, "未知账号")
+}

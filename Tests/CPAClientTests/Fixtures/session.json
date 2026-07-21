@@ -1,0 +1,9 @@
+{
+  "authenticated": true,
+  "role": "admin",
+  "api_key": {
+    "display_key": "example-display-key",
+    "alias": "fixture-viewer"
+  },
+  "future_field": true
+}

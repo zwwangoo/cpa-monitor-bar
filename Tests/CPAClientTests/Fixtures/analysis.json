@@ -1,0 +1,75 @@
+{
+  "granularity": "day",
+  "timezone": "Asia/Shanghai",
+  "range_start": "2026-07-20T00:00:00+08:00",
+  "range_end": "2026-07-21T00:00:00+08:00",
+  "token_usage": [{
+    "bucket": "2026-07-20T11:00:00Z",
+    "input_tokens": 7000,
+    "cache_read_tokens": 1000,
+    "cache_creation_tokens": 200,
+    "reasoning_tokens": 300,
+    "output_tokens": 4000,
+    "total_tokens": 12500,
+    "requests": 42,
+    "cost_usd": "1.25",
+    "cost_available": true
+  }],
+  "api_key_composition": [],
+  "model_composition": [{
+    "key": "gpt-example",
+    "label": "gpt-example",
+    "total_tokens": 9375,
+    "requests": 30,
+    "percent": "75",
+    "cost_usd": null
+  }],
+  "auth_files_composition": [],
+  "ai_provider_composition": [{
+    "key": "example-provider",
+    "label": "Example Provider",
+    "total_tokens": 12500,
+    "requests": 42,
+    "percent": 100,
+    "cost_usd": 1.25
+  }],
+  "heatmap": {
+    "api_keys": ["sk-example"],
+    "api_key_labels": {"sk-example": "Example Key"},
+    "models": ["gpt-example"],
+    "cells": [{
+      "api_key": "sk-example",
+      "model": "gpt-example",
+      "input_tokens": 7000,
+      "output_tokens": 4000,
+      "cache_read_tokens": 1000,
+      "cache_creation_tokens": 200,
+      "reasoning_tokens": 300,
+      "total_tokens": 12500,
+      "requests": 42,
+      "cost_usd": 1.25,
+      "cost_available": true,
+      "intensity": 1
+    }]
+  },
+  "cost_breakdown": {
+    "uncached_input_cost_usd": 0.5,
+    "cache_read_cost_usd": 0.05,
+    "cache_write_cost_usd": 0.1,
+    "output_cost_usd": 0.6,
+    "total_cost_usd": 1.25,
+    "cost_available": true
+  },
+  "model_efficiency": [],
+  "latency_diagnostics": {
+    "points": [{"ttft_ms": 125, "latency_ms": 600}],
+    "density": [{"ttft_min_ms": 100, "ttft_max_ms": 200, "latency_min_ms": 500, "latency_max_ms": 700, "count": 1, "intensity": 1}],
+    "total_points": 1,
+    "sampled": false,
+    "p95_ttft_ms": 250,
+    "p95_latency_ms": 1200,
+    "max_ttft_ms": 250,
+    "max_latency_ms": 1200
+  },
+  "future_field": "ignored"
+}

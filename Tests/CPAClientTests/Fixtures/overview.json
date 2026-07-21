@@ -1,0 +1,48 @@
+{
+  "usage": {
+    "total_requests": "42",
+    "success_count": 40,
+    "failure_count": 2,
+    "total_tokens": "12500"
+  },
+  "summary": {
+    "request_count": 42,
+    "token_count": 12500,
+    "window_minutes": 60,
+    "rpm": "3.5",
+    "tpm": 800,
+    "total_cost": "1.25",
+    "cost_available": true,
+    "input_tokens": 7000,
+    "cache_read_tokens": 1000,
+    "cache_creation_tokens": 200,
+    "reasoning_tokens": 300,
+    "daily_average_requests": 21,
+    "daily_average_tokens": 6250,
+    "daily_average_cost": null,
+    "daily_average_range_days": 2
+  },
+  "series": {
+    "requests": {"2026-07-20T10:00:00Z": 4},
+    "tokens": {"2026-07-20T10:00:00Z": 800},
+    "rpm": {"2026-07-20T10:00:00Z": 4.0},
+    "tpm": {"2026-07-20T10:00:00Z": 800.0},
+    "cost": {"2026-07-20T10:00:00Z": 0.08},
+    "cache_read_rate": {"2026-07-20T10:00:00Z": 0.2}
+  },
+  "service_health": {
+    "total_success": 40,
+    "total_failure": 2,
+    "success_rate": "97.5",
+    "rows": 1,
+    "columns": 1,
+    "bucket_seconds": 60,
+    "window_start": "2026-07-20T10:00:00Z",
+    "window_end": "2026-07-20T11:00:00Z",
+    "block_details": []
+  },
+  "timezone": "Asia/Shanghai",
+  "range_start": "2026-07-20T00:00:00+08:00",
+  "range_end": "2026-07-21T00:00:00+08:00",
+  "new_server_field": {"ignored": true}
+}
