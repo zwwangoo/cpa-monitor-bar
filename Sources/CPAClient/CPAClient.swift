@@ -94,6 +94,24 @@ public final class CPAClient: @unchecked Sendable {
         }
     }
 
+    public func refreshQuota(authIndexes: [String]) async throws -> UsageQuotaRefreshBatchResponse {
+        struct QuotaRefreshBody: Encodable {
+            let authIndexes: [String]
+            enum CodingKeys: String, CodingKey { case authIndexes = "auth_indexes" }
+        }
+        var request = try makeRequest(.quotaRefresh)
+        request.httpBody = try JSONEncoder().encode(QuotaRefreshBody(authIndexes: authIndexes))
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("fetch", forHTTPHeaderField: "X-CPA-Usage-Keeper-Request")
+        return try decode(UsageQuotaRefreshBatchResponse.self, from: await perform(request))
+    }
+
+    public func quotaRefreshStatus(authIndex: String) async throws -> UsageQuotaRefreshTaskResponse {
+        let url = try root.quotaRefreshStatusURL(authIndex: authIndex)
+        let request = try makeRequest(method: .get, url: url)
+        return try decode(UsageQuotaRefreshTaskResponse.self, from: await perform(request))
+    }
+
     public func login(password: String) async throws {
         struct LoginBody: Encodable { let password: String }
         var request = try makeRequest(.login)
@@ -156,6 +174,11 @@ public final class CPAClient: @unchecked Sendable {
         }
     }
 
+    private func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
+        do { return try JSONDecoder().decode(type, from: data) }
+        catch { throw CPAClientError.decoding(Self.decodingMessage(error)) }
+    }
+
     private func makeRequest(
         _ endpoint: CPAEndpoint,
         usageRange: UsageTimeRange = .today,
@@ -170,6 +193,19 @@ public final class CPAClient: @unchecked Sendable {
             pageSize: pageSize
         ))
         request.httpMethod = endpoint.method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 20
+        cookieStore.addCookies(to: &request)
+        return request
+    }
+
+    private func makeRequest(method: HTTPMethod, url: URL) throws -> URLRequest {
+        guard let path = URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedPath else {
+            throw CPAClientError.invalidBaseURL
+        }
+        try policy.validate(method: method, path: path)
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 20
         cookieStore.addCookies(to: &request)

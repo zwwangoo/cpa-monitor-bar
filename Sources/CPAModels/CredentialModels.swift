@@ -179,3 +179,38 @@ public struct UsageQuotaCacheResponse: Codable, Equatable, Sendable {
         items = try v.decodeIfPresent([UsageQuotaCacheItem].self, forKey: .items) ?? []
     }
 }
+
+public struct UsageQuotaRefreshTaskReference: Codable, Equatable, Sendable {
+    public let authIndex: String
+}
+
+public struct UsageQuotaRefreshRejection: Codable, Equatable, Sendable {
+    public let authIndex: String
+    public let error: String?
+}
+
+public struct UsageQuotaRefreshBatchResponse: Codable, Equatable, Sendable {
+    public let tasks: [UsageQuotaRefreshTaskReference]
+    public let rejected: [UsageQuotaRefreshRejection]
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        tasks = try values.decodeIfPresent([UsageQuotaRefreshTaskReference].self, forKey: .tasks) ?? []
+        rejected = try values.decodeIfPresent([UsageQuotaRefreshRejection].self, forKey: .rejected) ?? []
+    }
+}
+
+public struct UsageQuotaRefreshTaskResponse: Codable, Equatable, Sendable {
+    public let authIndex: String?
+    public let status: String
+    public let quota: UsageQuotaCheckResponse?
+    public let error: String?
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        authIndex = try values.decodeIfPresent(String.self, forKey: .authIndex)
+        status = try values.decodeIfPresent(String.self, forKey: .status) ?? "unknown"
+        quota = try values.decodeIfPresent(UsageQuotaCheckResponse.self, forKey: .quota)
+        error = try values.decodeIfPresent(String.self, forKey: .error)
+    }
+}

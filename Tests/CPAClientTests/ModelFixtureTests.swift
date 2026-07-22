@@ -195,6 +195,35 @@ final class ModelFixtureTests: XCTestCase {
         XCTAssertEqual(response.items.first?.quota?.quota.first?.remainingFraction, 0.8)
     }
 
+    func testDecodesQuotaRefreshBatchAndCompletedTask() throws {
+        let batchJSON = #"""
+        {
+          "tasks":[{"authIndex":"auth-1"}],
+          "rejected":[{"authIndex":"auth-2","error":"unsupported"}]
+        }
+        """#
+        let taskJSON = #"""
+        {
+          "authIndex":"auth-1","status":"completed",
+          "quota":{"id":"auth-1","quota":[{"key":"5h","remainingFraction":0.7}]}
+        }
+        """#
+        let decoder = JSONDecoder()
+        let batch = try decoder.decode(
+            UsageQuotaRefreshBatchResponse.self,
+            from: Data(batchJSON.utf8)
+        )
+        let task = try decoder.decode(
+            UsageQuotaRefreshTaskResponse.self,
+            from: Data(taskJSON.utf8)
+        )
+
+        XCTAssertEqual(batch.tasks.first?.authIndex, "auth-1")
+        XCTAssertEqual(batch.rejected.first?.error, "unsupported")
+        XCTAssertEqual(task.status, "completed")
+        XCTAssertEqual(task.quota?.quota.first?.remainingFraction, 0.7)
+    }
+
     private func fixture<T: Decodable>(_ name: String) throws -> T {
         let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: "json"))
         return try JSONDecoder().decode(T.self, from: Data(contentsOf: url))

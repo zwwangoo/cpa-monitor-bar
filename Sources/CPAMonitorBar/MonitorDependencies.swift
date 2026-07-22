@@ -41,6 +41,8 @@ protocol CPAServiceClient: Sendable {
     func authFiles() async throws -> UsageIdentitiesPageResponse
     func providers() async throws -> UsageIdentitiesPageResponse
     func quotaCache(authIndexes: [String]) async throws -> UsageQuotaCacheResponse
+    func refreshQuota(authIndexes: [String]) async throws -> UsageQuotaRefreshBatchResponse
+    func quotaRefreshStatus(authIndex: String) async throws -> UsageQuotaRefreshTaskResponse
     func login(password: String) async throws
     func logout() async throws
 }

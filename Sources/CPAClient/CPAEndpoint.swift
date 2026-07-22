@@ -27,10 +27,11 @@ public enum CPAEndpoint: CaseIterable, Sendable {
     case authFiles
     case providers
     case quotaCache
+    case quotaRefresh
 
     public var method: HTTPMethod {
         switch self {
-        case .login, .logout, .quotaCache: .post
+        case .login, .logout, .quotaCache, .quotaRefresh: .post
         default: .get
         }
     }
@@ -49,6 +50,7 @@ public enum CPAEndpoint: CaseIterable, Sendable {
         case .usageEvents: "/cpa/api/v1/usage/events"
         case .authFiles, .providers: "/cpa/api/v1/usage/identities/page"
         case .quotaCache: "/cpa/api/v1/quota/cache"
+        case .quotaRefresh: "/cpa/api/v1/quota/refresh"
         }
     }
 

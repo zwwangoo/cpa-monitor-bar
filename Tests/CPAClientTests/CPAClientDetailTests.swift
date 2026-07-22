@@ -55,6 +55,41 @@ final class CPAClientDetailTests: XCTestCase {
         _ = try await makeClient().quotaCache(authIndexes: ["auth-1", "auth-2"])
     }
 
+    func testQuotaRefreshUsesBatchPostAndSingleStatusGetContracts() async throws {
+        StubURLProtocol.handler = { request in
+            let path = try XCTUnwrap(request.url?.path)
+            if request.httpMethod == "POST" {
+                XCTAssertEqual(
+                    request.value(forHTTPHeaderField: "X-CPA-Usage-Keeper-Request"),
+                    "fetch"
+                )
+                XCTAssertEqual(path, "/cpa/api/v1/quota/refresh")
+                var inspectedRequest = request
+                let body = try Self.bodyData(from: &inspectedRequest)
+                let object = try JSONSerialization.jsonObject(with: body) as? [String: [String]]
+                XCTAssertEqual(object, ["auth_indexes": ["auth-1"]])
+                return Self.response(
+                    for: request,
+                    body: #"{"tasks":[{"authIndex":"auth-1"}],"rejected":[]}"#
+                )
+            }
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertNil(request.value(forHTTPHeaderField: "X-CPA-Usage-Keeper-Request"))
+            XCTAssertEqual(path, "/cpa/api/v1/quota/refresh/auth-1")
+            return Self.response(
+                for: request,
+                body: #"{"authIndex":"auth-1","status":"completed","quota":{"quota":[]}}"#
+            )
+        }
+        let client = try makeClient()
+
+        let batch = try await client.refreshQuota(authIndexes: ["auth-1"])
+        let task = try await client.quotaRefreshStatus(authIndex: "auth-1")
+
+        XCTAssertEqual(batch.tasks.first?.authIndex, "auth-1")
+        XCTAssertEqual(task.status, "completed")
+    }
+
     func testUsageMethodsForwardSelectedRange() async throws {
         StubURLProtocol.handler = { request in
             let query = try XCTUnwrap(request.url?.query)

@@ -4,6 +4,9 @@ import CPAModels
 struct CredentialsTab: View {
     let authFiles: SectionState<UsageIdentitiesPageResponse>
     let quotaCache: SectionState<UsageQuotaCacheResponse>
+    let isRefreshingQuota: Bool
+    let quotaRefreshError: String?
+    let onRefreshQuota: ([String]) -> Void
     @State private var selectedCategory = AuthFileCategory.all
 
     var body: some View {
@@ -15,9 +18,21 @@ struct CredentialsTab: View {
         let identities = visibleAuthFiles(authFiles.value?.identities ?? [])
         let categories = visibleAuthFileCategories(identities)
         let filtered = filterAuthFiles(identities, matching: selectedCategory)
+        let refreshIndexes = quotaRefreshIndexes(identities, matching: selectedCategory)
         return GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                categoryBar(categories, identities: identities)
+                credentialToolbar(
+                    categories,
+                    identities: identities,
+                    refreshIndexes: refreshIndexes
+                )
+                if let quotaRefreshError {
+                    Label(quotaRefreshError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .lineLimit(1)
+                        .help(quotaRefreshError)
+                }
                 if !filtered.isEmpty {
                     VStack(spacing: 10) {
                         ForEach(filtered) { identity in
@@ -40,6 +55,37 @@ struct CredentialsTab: View {
                 selectedCategory = .all
             }
         }
+    }
+
+    private func credentialToolbar(
+        _ categories: [AuthFileCategory],
+        identities: [UsageIdentity],
+        refreshIndexes: [String]
+    ) -> some View {
+        HStack(spacing: 8) {
+            categoryBar(categories, identities: identities)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            quotaRefreshButton(refreshIndexes)
+        }
+    }
+
+    private func quotaRefreshButton(_ indexes: [String]) -> some View {
+        Button { onRefreshQuota(indexes) } label: {
+            HStack(spacing: 4) {
+                ZStack {
+                    Image(systemName: "arrow.clockwise")
+                        .opacity(isRefreshingQuota ? 0 : 1)
+                    if isRefreshingQuota { ProgressView().controlSize(.mini) }
+                }
+                .frame(width: 12, height: 12)
+                Text("刷新额度")
+            }
+            .font(.caption)
+            .fixedSize()
+        }
+        .controlSize(.small)
+        .disabled(isRefreshingQuota || indexes.isEmpty)
+        .help(isRefreshingQuota ? "正在刷新当前分类的额度" : "刷新当前分类的额度")
     }
 
     private func categoryBar(
@@ -117,6 +163,17 @@ func filterAuthFiles(
     guard let type = category.identityType else { return identities }
     return identities.filter {
         $0.type?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == type
+    }
+}
+
+func quotaRefreshIndexes(
+    _ identities: [UsageIdentity],
+    matching category: AuthFileCategory
+) -> [String] {
+    filterAuthFiles(visibleAuthFiles(identities), matching: category).compactMap {
+        guard let identity = $0.identity?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !identity.isEmpty else { return nil }
+        return identity
     }
 }
 

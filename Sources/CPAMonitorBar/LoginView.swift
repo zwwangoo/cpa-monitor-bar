@@ -2,7 +2,6 @@ import SwiftUI
 
 struct LoginView: View {
     let error: String?
-    let onOpenSettings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -14,7 +13,9 @@ struct LoginView: View {
             if let error {
                 ErrorBanner(message: error, stale: false)
             }
-            Button("打开设置…", action: onOpenSettings)
+            SettingsLink {
+                Text("打开设置…")
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     }

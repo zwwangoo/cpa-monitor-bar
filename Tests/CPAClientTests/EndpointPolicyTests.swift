@@ -111,13 +111,13 @@ final class EndpointPolicyTests: XCTestCase {
         XCTAssertEqual(CPAEndpoint.login.method, .post)
         XCTAssertEqual(CPAEndpoint.logout.method, .post)
         XCTAssertEqual(CPAEndpoint.quotaCache.method, .post)
+        XCTAssertEqual(CPAEndpoint.quotaRefresh.method, .post)
     }
 
     func testPolicyRejectsQuotaAndManagementPaths() throws {
         let policy = CPARequestPolicy()
         let forbidden = [
             "/cpa/api/v1/quota/inspection",
-            "/cpa/api/v1/quota/refresh",
             "/cpa/api/v1/quota/reset",
             "/cpa/api/v1/auth-files",
             "/cpa/api/v1/pricing/update",
@@ -127,6 +127,29 @@ final class EndpointPolicyTests: XCTestCase {
         for path in forbidden {
             XCTAssertThrowsError(try policy.validate(method: .get, path: path), path)
             XCTAssertThrowsError(try policy.validate(method: .post, path: path), path)
+        }
+    }
+
+    func testPolicyAllowsOnlyQuotaRefreshAndSingleTaskStatusPath() throws {
+        let policy = CPARequestPolicy()
+        let refreshPath = "/cpa/api/v1/quota/refresh"
+
+        XCTAssertNoThrow(try policy.validate(method: .post, path: refreshPath))
+        XCTAssertNoThrow(try policy.validate(method: .get, path: "\(refreshPath)/auth-1"))
+
+        let rejected = [
+            refreshPath,
+            "\(refreshPath)/",
+            "\(refreshPath)/auth-1/extra",
+            "\(refreshPath)/.",
+            "\(refreshPath)/..",
+            "\(refreshPath)/%2e%2e",
+            "\(refreshPath)/auth%2Fextra",
+            "\(refreshPath)/%252525252e%252525252e",
+            "\(refreshPath)/auth%252525252Fextra",
+        ]
+        for path in rejected {
+            XCTAssertThrowsError(try policy.validate(method: .get, path: path), path)
         }
     }
 

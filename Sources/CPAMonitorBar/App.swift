@@ -1,39 +1,28 @@
+import AppKit
 import SwiftUI
 
 @main
 struct CPAMonitorBarApp: App {
-    @StateObject private var model = MonitorViewModel()
-    @StateObject private var windowPresentation = MonitorWindowPresentation()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MonitorPopover(
-                model: model,
-                windowPresentation: windowPresentation,
-                presentationMode: .menuBar
-            )
-        } label: {
-            Label(model.statusText, systemImage: model.statusSymbol)
-                .task { await model.start() }
-        }
-        .menuBarExtraStyle(.window)
-
-        Window("CPA Monitor Bar", id: MonitorWindowPresentation.pinnedWindowID) {
-            MonitorPopover(
-                model: model,
-                windowPresentation: windowPresentation,
-                presentationMode: .pinned
-            )
-            .ignoresSafeArea(.container, edges: .top)
-            .background(PinnedMonitorWindowAccessor())
-            .onDisappear { windowPresentation.unpin() }
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .defaultLaunchBehavior(.suppressed)
-
         Settings {
-            SettingsView(model: model)
+            SettingsView(model: appDelegate.model)
         }
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let model = MonitorViewModel()
+    let windowPresentation = MonitorWindowPresentation()
+    private var statusBarController: StatusBarController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        statusBarController = StatusBarController(
+            model: model,
+            presentation: windowPresentation
+        )
+        Task { await model.start() }
     }
 }

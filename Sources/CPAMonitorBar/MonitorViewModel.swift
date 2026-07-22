@@ -30,7 +30,9 @@ final class MonitorViewModel: ObservableObject {
     @Published var eventsLoadMoreError: String?
     @Published private(set) var authFiles = SectionState<UsageIdentitiesPageResponse>()
     @Published private(set) var providers = SectionState<UsageIdentitiesPageResponse>()
-    @Published private(set) var quotaCache = SectionState<UsageQuotaCacheResponse>()
+    @Published var quotaCache = SectionState<UsageQuotaCacheResponse>()
+    @Published var isRefreshingQuota = false
+    @Published var quotaRefreshError: String?
 
     var client: (any CPAServiceClient)?
     var credentialStore: (any CredentialStore)?
@@ -40,8 +42,10 @@ final class MonitorViewModel: ObservableObject {
     private let credentialStoreFactory: CredentialStoreFactory
     private let clientFactory: CPAServiceClientFactory
     let pollingIntervalOverride: Duration?
+    let quotaRefreshPollingInterval: Duration
     var pollingTask: Task<Void, Never>?
-    private var connectionGeneration = 0
+    var quotaRefreshTask: Task<Void, Never>?
+    var connectionGeneration = 0
     private var started = false
     var eventsPageGeneration = 0
     init(
@@ -54,7 +58,8 @@ final class MonitorViewModel: ObservableObject {
         clientFactory: @escaping CPAServiceClientFactory = { root in
             try! CPAClient(baseURL: root.url.absoluteString)
         },
-        pollingInterval: Duration? = nil
+        pollingInterval: Duration? = nil,
+        quotaRefreshPollingInterval: Duration = .seconds(5)
     ) {
         let preferences = preferencesStore.load()
         let launchController = launchAtLoginController ?? LaunchAtLoginController()
@@ -64,6 +69,7 @@ final class MonitorViewModel: ObservableObject {
         self.credentialStoreFactory = credentialStoreFactory
         self.clientFactory = clientFactory
         pollingIntervalOverride = pollingInterval
+        self.quotaRefreshPollingInterval = quotaRefreshPollingInterval
         usageRange = preferences.usageRange
         refreshFrequency = preferences.refreshFrequency
         launchAtLoginEnabled = launchController.isEnabled
@@ -78,7 +84,10 @@ final class MonitorViewModel: ObservableObject {
         }
     }
 
-    deinit { pollingTask?.cancel() }
+    deinit {
+        pollingTask?.cancel()
+        quotaRefreshTask?.cancel()
+    }
     func start() async {
         guard !started, client != nil else { return }
         started = true
@@ -242,8 +251,12 @@ final class MonitorViewModel: ObservableObject {
     }
 
     private func resetConnectionState() {
+        quotaRefreshTask?.cancel()
+        quotaRefreshTask = nil
         isAuthenticated = false
         isRefreshing = false
+        isRefreshingQuota = false
+        quotaRefreshError = nil
         loginError = nil
         health = SectionState()
         keeperStatus = SectionState()
@@ -262,7 +275,11 @@ final class MonitorViewModel: ObservableObject {
 
     func beginConnectionStateChange() -> Int {
         connectionGeneration += 1
+        quotaRefreshTask?.cancel()
+        quotaRefreshTask = nil
         isRefreshing = false
+        isRefreshingQuota = false
+        quotaRefreshError = nil
         health.isLoading = false
         keeperStatus.isLoading = false
         keeperVersion.isLoading = false
@@ -277,7 +294,6 @@ final class MonitorViewModel: ObservableObject {
         isLoadingMoreEvents = false
         return connectionGeneration
     }
-
     func isCurrent(_ generation: Int) -> Bool {
         generation == connectionGeneration
     }

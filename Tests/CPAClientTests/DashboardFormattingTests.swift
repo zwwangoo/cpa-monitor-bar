@@ -123,6 +123,27 @@ final class DashboardFormattingTests: XCTestCase {
         )
     }
 
+    func testQuotaRefreshIndexesUseOnlyEnabledCredentialsInSelectedCategory() throws {
+        let payload = Data(#"""
+        {"identities":[
+          {"id":"1","identity":"codex-enabled","type":"codex","disabled":false},
+          {"id":"2","identity":"codex-disabled","type":"codex","disabled":true},
+          {"id":"3","identity":"claude-enabled","type":"claude","disabled":false},
+          {"id":"4","identity":"   ","type":"codex","disabled":false}
+        ]}
+        """#.utf8)
+        let response = try JSONDecoder().decode(UsageIdentitiesPageResponse.self, from: payload)
+
+        XCTAssertEqual(
+            quotaRefreshIndexes(response.identities, matching: .codex),
+            ["codex-enabled"]
+        )
+        XCTAssertEqual(
+            quotaRefreshIndexes(response.identities, matching: .claude),
+            ["claude-enabled"]
+        )
+    }
+
     func testCompactLatencyUsesMillisecondsAndSeconds() {
         XCTAssertEqual(compactLatency(nil), "—")
         XCTAssertEqual(compactLatency(125), "125ms")

@@ -2,17 +2,16 @@ import AppKit
 import SwiftUI
 
 struct MonitorPopover: View {
-    @Environment(\.dismissWindow) private var dismissWindow
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
     @ObservedObject var model: MonitorViewModel
     @ObservedObject var windowPresentation: MonitorWindowPresentation
-    let presentationMode: MonitorWindowMode
+    let onTogglePin: () -> Void
+    let onDragPinnedWindow: (CGSize, Bool) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             windowToolbar
             Divider()
+                .padding(.vertical, 14)
             if model.configurationState == .unconfigured {
                 configurationView
             } else if model.health.isLoading && model.health.value == nil {
@@ -20,14 +19,12 @@ struct MonitorPopover: View {
             } else if let error = model.health.errorMessage {
                 offlineView(error: error)
             } else if !model.isAuthenticated {
-                LoginView(
-                    error: model.loginError,
-                    onOpenSettings: presentSettings
-                )
+                LoginView(error: model.loginError)
             } else {
                 dashboard
             }
             Divider()
+                .padding(.vertical, 6)
             footer
         }
         .padding(16)
@@ -52,7 +49,27 @@ struct MonitorPopover: View {
             } else {
                 Spacer()
             }
+
+            if windowPresentation.isPinned {
+                dragHandle
+            }
         }
+    }
+
+    private var dragHandle: some View {
+        Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.secondary)
+            .frame(width: 28, height: 28)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { onDragPinnedWindow($0.translation, false) }
+                    .onEnded { onDragPinnedWindow($0.translation, true) }
+            )
+            .help("拖动置顶窗口")
+            .accessibilityLabel("拖动置顶窗口")
     }
 
     private var pinBackground: Color {
@@ -60,19 +77,11 @@ struct MonitorPopover: View {
     }
 
     private var pinHelp: String {
-        if presentationMode == .pinned { return "取消置顶" }
-        return windowPresentation.isPinned ? "显示置顶窗口" : "置顶窗口"
+        windowPresentation.isPinned ? "取消置顶" : "置顶窗口"
     }
 
     private func handlePinButton() {
-        switch presentationMode {
-        case .menuBar:
-            windowPresentation.pin()
-            openWindow(id: MonitorWindowPresentation.pinnedWindowID)
-        case .pinned:
-            windowPresentation.unpin()
-            dismissWindow(id: MonitorWindowPresentation.pinnedWindowID)
-        }
+        onTogglePin()
     }
 
     private var dashboardToolbar: some View {
@@ -104,7 +113,9 @@ struct MonitorPopover: View {
             Text("请先设置 CPA 服务根 URL，配置完成后应用会检查连接与登录状态。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("打开设置…") { presentSettings() }
+            SettingsLink {
+                Text("打开设置…")
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
     }
@@ -135,7 +146,10 @@ struct MonitorPopover: View {
                 ScrollView {
                     CredentialsTab(
                         authFiles: model.authFiles,
-                        quotaCache: model.quotaCache
+                        quotaCache: model.quotaCache,
+                        isRefreshingQuota: model.isRefreshingQuota,
+                        quotaRefreshError: model.quotaRefreshError,
+                        onRefreshQuota: { model.refreshQuota(authIndexes: $0) }
                     )
                 }
                 .scrollIndicators(.hidden)
@@ -169,7 +183,7 @@ struct MonitorPopover: View {
     }
 
     private var footer: some View {
-        MonitorFooter(model: model, onOpenSettings: presentSettings)
+        MonitorFooter(model: model)
     }
 
     private func integer(_ value: Int?) -> String {
@@ -190,29 +204,6 @@ struct MonitorPopover: View {
         return min(max(availableHeight * 0.58, 460), 620)
     }
 
-    private func presentSettings() {
-        openSettings()
-        bringSettingsToFront()
-        DispatchQueue.main.async { bringSettingsToFront() }
-    }
-
-    private func bringSettingsToFront() {
-        NSApp.activate(ignoringOtherApps: true)
-        let settingsWindow = NSApp.windows.first {
-            $0.isVisible
-                && $0.canBecomeKey
-                && !($0 is NSPanel)
-                && $0.identifier?.rawValue != MonitorWindowPresentation.pinnedWindowID
-        }
-        settingsWindow?.makeKeyAndOrderFront(nil)
-        settingsWindow?.orderFrontRegardless()
-    }
-
-}
-
-enum MonitorWindowMode {
-    case menuBar
-    case pinned
 }
 
 enum MonitorTab: String, CaseIterable, Identifiable {

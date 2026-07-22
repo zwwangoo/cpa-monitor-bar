@@ -25,14 +25,18 @@ final class Dependencies {
         clientFactory = ClientFactoryRecorder(clients: clients)
     }
 
-    func makeModel(pollingInterval: Duration = .seconds(60)) -> MonitorViewModel {
+    func makeModel(
+        pollingInterval: Duration = .seconds(60),
+        quotaRefreshPollingInterval: Duration = .milliseconds(1)
+    ) -> MonitorViewModel {
         MonitorViewModel(
             baseURLStore: baseURLStore,
             preferencesStore: preferencesStore,
             launchAtLoginController: launchAtLoginController,
             credentialStoreFactory: credentialFactory.makeStore,
             clientFactory: clientFactory.makeClient,
-            pollingInterval: pollingInterval
+            pollingInterval: pollingInterval,
+            quotaRefreshPollingInterval: quotaRefreshPollingInterval
         )
     }
 }
@@ -115,6 +119,7 @@ actor CountingClient: CPAServiceClient {
     enum Call: Equatable {
         case health, session, status, version, overview, realtime, analysis
         case events, authFiles, providers, quotaCache([String])
+        case refreshQuota([String]), quotaRefreshStatus(String)
         case login, logout
     }
 
@@ -130,6 +135,10 @@ actor CountingClient: CPAServiceClient {
     private let keeperRunning: Bool
     private let loginError: CPAClientError?
     private let eventResponseBodies: [Int: String]
+    private let quotaRefreshBatchBody: String
+    private let quotaRefreshError: CPAClientError?
+    private var quotaRefreshTaskBodies: [String: [String]]
+    private var quotaCacheResponseBodies: [String]
 
     init(
         authenticated: Bool = false,
@@ -137,7 +146,11 @@ actor CountingClient: CPAServiceClient {
         healthStatus: String = "ok",
         keeperRunning: Bool = true,
         loginError: CPAClientError? = nil,
-        eventResponseBodies: [Int: String] = [:]
+        eventResponseBodies: [Int: String] = [:],
+        quotaRefreshBatchBody: String = #"{"tasks":[],"rejected":[]}"#,
+        quotaRefreshError: CPAClientError? = nil,
+        quotaRefreshTaskBodies: [String: [String]] = [:],
+        quotaCacheResponseBodies: [String] = []
     ) {
         self.authenticated = authenticated
         remainingHealthErrors = healthError.map { [$0] } ?? []
@@ -145,6 +158,10 @@ actor CountingClient: CPAServiceClient {
         self.keeperRunning = keeperRunning
         self.loginError = loginError
         self.eventResponseBodies = eventResponseBodies
+        self.quotaRefreshBatchBody = quotaRefreshBatchBody
+        self.quotaRefreshError = quotaRefreshError
+        self.quotaRefreshTaskBodies = quotaRefreshTaskBodies
+        self.quotaCacheResponseBodies = quotaCacheResponseBodies
     }
 
     func health() async throws -> HealthResponse {
@@ -211,7 +228,24 @@ actor CountingClient: CPAServiceClient {
 
     func quotaCache(authIndexes: [String]) async throws -> UsageQuotaCacheResponse {
         calls.append(.quotaCache(authIndexes))
-        return try decode(#"{"items":[]}"#)
+        let body = quotaCacheResponseBodies.isEmpty
+            ? #"{"items":[]}"#
+            : quotaCacheResponseBodies.removeFirst()
+        return try decode(body)
+    }
+
+    func refreshQuota(authIndexes: [String]) async throws -> UsageQuotaRefreshBatchResponse {
+        calls.append(.refreshQuota(authIndexes))
+        if let quotaRefreshError { throw quotaRefreshError }
+        return try decode(quotaRefreshBatchBody)
+    }
+
+    func quotaRefreshStatus(authIndex: String) async throws -> UsageQuotaRefreshTaskResponse {
+        calls.append(.quotaRefreshStatus(authIndex))
+        var bodies = quotaRefreshTaskBodies[authIndex] ?? []
+        let body = bodies.isEmpty ? #"{"status":"completed"}"# : bodies.removeFirst()
+        quotaRefreshTaskBodies[authIndex] = bodies
+        return try decode(body)
     }
 
     func login(password: String) async throws {

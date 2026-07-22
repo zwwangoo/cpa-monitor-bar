@@ -1,14 +1,41 @@
 import Foundation
 
 public struct CPARequestPolicy: Sendable {
+    private static let quotaRefreshStatusPrefix = "/cpa/api/v1/quota/refresh/"
+
     public init() {}
 
     public func validate(method: HTTPMethod, path: String) throws {
-        guard CPAEndpoint.allCases.contains(where: {
+        if CPAEndpoint.allCases.contains(where: {
             $0.method == method && $0.path == path
-        }) else {
+        }) {
+            return
+        }
+        guard method == .get, Self.isSafeQuotaRefreshStatusPath(path) else {
             throw CPAClientError.requestRejected
         }
+    }
+
+    private static func isSafeQuotaRefreshStatusPath(_ path: String) -> Bool {
+        guard path.hasPrefix(quotaRefreshStatusPrefix) else { return false }
+        let encoded = String(path.dropFirst(quotaRefreshStatusPrefix.count))
+        guard !encoded.isEmpty, !encoded.contains("/") else { return false }
+        guard let decoded = repeatedlyDecode(encoded) else { return false }
+        return !decoded.isEmpty
+            && decoded != "."
+            && decoded != ".."
+            && !decoded.contains("/")
+            && !decoded.contains("\\")
+    }
+
+    private static func repeatedlyDecode(_ value: String) -> String? {
+        var decoded = value
+        while decoded.contains("%") {
+            guard let next = decoded.removingPercentEncoding else { return nil }
+            if next == decoded { break }
+            decoded = next
+        }
+        return decoded
     }
 }
 

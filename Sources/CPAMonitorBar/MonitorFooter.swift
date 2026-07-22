@@ -3,7 +3,6 @@ import SwiftUI
 
 struct MonitorFooter: View {
     @ObservedObject var model: MonitorViewModel
-    let onOpenSettings: () -> Void
     @State private var isQuitting = false
 
     var body: some View {
@@ -35,9 +34,10 @@ struct MonitorFooter: View {
 
     private var actionRow: some View {
         HStack(spacing: 6) {
-            FooterActionButton(title: "设置", symbol: "gearshape") {
-                onOpenSettings()
+            SettingsLink {
+                FooterActionLabel(title: "设置", symbol: "gearshape")
             }
+            .buttonStyle(.plain)
             .accessibilityIdentifier("monitor.footer.settings")
             if model.configurationState == .configured {
                 FooterActionButton(
@@ -104,36 +104,54 @@ func performApplicationQuit(
 }
 
 private struct FooterActionButton: View {
-    enum Role { case normal, danger }
-
     let title: String
     let symbol: String
     var isLoading = false
     var isDisabled = false
-    var role = Role.normal
+    var role = FooterActionRole.normal
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
-                ZStack {
-                    Image(systemName: symbol).opacity(isLoading ? 0 : 1)
-                    if isLoading { ProgressView().controlSize(.mini) }
-                }
-                .frame(width: 12, height: 12)
-                Text(title)
-            }
-            .font(.caption)
-            .foregroundStyle(role == .danger ? Color.red : Color.primary)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 5)
-            .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 7))
-            .overlay {
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(Color.secondary.opacity(0.16), lineWidth: 0.5)
-            }
+            FooterActionLabel(
+                title: title,
+                symbol: symbol,
+                isLoading: isLoading,
+                role: role
+            )
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
+    }
+}
+
+private enum FooterActionRole {
+    case normal, danger
+}
+
+private struct FooterActionLabel: View {
+    let title: String
+    let symbol: String
+    var isLoading = false
+    var role = FooterActionRole.normal
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ZStack {
+                Image(systemName: symbol).opacity(isLoading ? 0 : 1)
+                if isLoading { ProgressView().controlSize(.mini) }
+            }
+            .frame(width: 12, height: 12)
+            Text(title)
+        }
+        .font(.caption)
+        .foregroundStyle(role == .danger ? Color.red : Color.primary)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 7))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.16), lineWidth: 0.5)
+        }
     }
 }

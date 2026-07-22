@@ -63,6 +63,17 @@ public struct CPAServiceRoot: Equatable, Sendable {
         return result
     }
 
+    public func quotaRefreshStatusURL(authIndex: String) throws -> URL {
+        guard !authIndex.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw CPAClientError.requestRejected
+        }
+        components.path = "\(CPAEndpoint.quotaRefresh.path)/\(authIndex)"
+        try CPARequestPolicy().validate(method: .get, path: components.percentEncodedPath)
+        guard let result = components.url else { throw CPAClientError.invalidBaseURL }
+        return result
+    }
+
     private static func containsTraversal(_ path: String) -> Bool {
         let repeatedlyDecoded = path.removingPercentEncoding?.lowercased() ?? path
         return repeatedlyDecoded.split(separator: "/", omittingEmptySubsequences: false)

@@ -40,13 +40,7 @@ struct TokenShareSection: View {
     var body: some View {
         GroupBox("Token 占比") {
             VStack(alignment: .leading, spacing: 10) {
-                Picker("Token 占比维度", selection: $dimension) {
-                    ForEach(TokenShareDimension.allCases) { item in
-                        Text(item.title).tag(item)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                dimensionPicker
 
                 let items = tokenShareItems(for: dimension, in: analysis)
                 if items.isEmpty {
@@ -70,6 +64,39 @@ struct TokenShareSection: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("monitor.overview.token-share")
+    }
+
+    private var dimensionPicker: some View {
+        HStack(spacing: 2) {
+            ForEach(TokenShareDimension.allCases) { item in
+                Button {
+                    dimension = item
+                } label: {
+                    Text(item.title)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(dimension == item ? Color.white : Color.primary)
+                        .background(selectionBackground(for: item))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(dimension == item ? .isSelected : [])
+            }
+        }
+        .padding(2)
+        .background(
+            Color.secondary.opacity(0.16),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        )
+        .accessibilityLabel("Token 占比维度")
+    }
+
+    @ViewBuilder
+    private func selectionBackground(for item: TokenShareDimension) -> some View {
+        if dimension == item {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.accentColor)
+        }
     }
 }
 
