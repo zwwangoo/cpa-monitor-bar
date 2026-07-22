@@ -126,12 +126,12 @@ final class RecordingCredentialStore: CredentialStore, @unchecked Sendable {
         self.savedPassword = savedPassword
     }
 
-    func savePassword(_ password: String) throws { savedPassword = password }
-    func loadPassword() throws -> String? {
+    func savePassword(_ password: String) async throws { savedPassword = password }
+    func loadPassword() async throws -> String? {
         loadCount += 1
         return savedPassword
     }
-    func deletePassword() throws {
+    func deletePassword() async throws {
         deleteCount += 1
         savedPassword = nil
     }

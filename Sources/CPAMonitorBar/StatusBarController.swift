@@ -2,26 +2,19 @@ import AppKit
 import Combine
 import SwiftUI
 
-@MainActor
-func configureMonitorPopoverWindow(_ window: NSWindow, isPinned: Bool) {
-    var behavior = window.collectionBehavior
-    behavior.subtract([.canJoinAllSpaces, .fullScreenAuxiliary, .moveToActiveSpace])
-    behavior.formUnion(isPinned
-        ? [.canJoinAllSpaces, .fullScreenAuxiliary]
-        : [.moveToActiveSpace])
-    window.collectionBehavior = behavior
-    window.isMovable = false
+enum PanelDisplayAnchor {
+    case statusItem
+    case pointer
 }
 
 @MainActor
-final class StatusBarController: NSObject {
-    let popover = NSPopover()
+final class StatusBarController: NSObject, NSWindowDelegate {
+    let panel = MonitorPanel()
 
     private let statusItem: NSStatusItem
     private let model: MonitorViewModel
     private let presentation: MonitorWindowPresentation
-    private var hostingController: NSHostingController<MonitorPopover>?
-    private var pinnedAnchor: PinnedPopoverAnchor?
+    private var hostingController: NSHostingController<MonitorPanelContent>?
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -33,20 +26,17 @@ final class StatusBarController: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
-        configureMonitorPopover(popover, isPinned: presentation.isPinned)
-        popover.animates = true
-        let content = MonitorPopover(
+        configureMonitorPanel(panel, isPinned: presentation.isPinned)
+        let content = MonitorPanelContent(
             model: model,
             windowPresentation: presentation,
-            onTogglePin: { [weak self] in self?.togglePin() },
-            onDragPinnedWindow: { [weak self] translation, ended in
-                self?.pinnedAnchor?.drag(translation: translation, ended: ended)
-            }
+            onTogglePin: { [weak self] in self?.togglePin() }
         )
         let hostingController = NSHostingController(rootView: content)
         hostingController.sizingOptions = [.preferredContentSize]
         self.hostingController = hostingController
-        popover.contentViewController = hostingController
+        installContentView(hostingController.view)
+        panel.delegate = self
 
         configureStatusButton()
         observeModelStatus()
@@ -58,19 +48,16 @@ final class StatusBarController: NSObject {
 
     func togglePin() {
         presentation.togglePin()
-        configureMonitorPopover(popover, isPinned: presentation.isPinned)
-        if presentation.isPinned {
-            installPinnedAnchorIfPossible()
-        } else {
-            restoreStatusItemAnchor()
+        configureMonitorPanel(panel, isPinned: presentation.isPinned)
+        if !presentation.isPinned, panel.isVisible {
+            positionPanelUnderStatusItem()
         }
-        configurePopoverWindowIfAvailable()
     }
 
     private func configureStatusButton() {
         guard let button = statusItem.button else { return }
         button.target = self
-        button.action = #selector(togglePopover)
+        button.action = #selector(togglePanel as () -> Void)
         button.sendAction(on: [.leftMouseUp])
         updateStatusButton()
     }
@@ -78,7 +65,10 @@ final class StatusBarController: NSObject {
     private func observeModelStatus() {
         model.objectWillChange
             .sink { [weak self] in
-                DispatchQueue.main.async { self?.updateStatusButton() }
+                DispatchQueue.main.async {
+                    self?.updateStatusButton()
+                    self?.resizePanelToFit()
+                }
             }
             .store(in: &cancellables)
     }
@@ -94,60 +84,106 @@ final class StatusBarController: NSObject {
         button.toolTip = "CPA Monitor Bar · \(model.statusText)"
     }
 
-    @objc private func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
+    @objc func togglePanel() {
+        togglePanel(anchor: .statusItem)
+    }
+
+    func togglePanel(anchor: PanelDisplayAnchor) {
+        if panel.isVisible {
+            panel.orderOut(nil)
         } else {
-            showPopover()
+            showPanel(anchor: anchor)
         }
     }
 
-    private func showPopover() {
+    private func showPanel(anchor: PanelDisplayAnchor) {
+        resizePanelToFit()
+        if !presentation.isPinned {
+            switch anchor {
+            case .statusItem:
+                positionPanelUnderStatusItem()
+            case .pointer:
+                positionPanelNearPointer()
+            }
+        }
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+    }
+
+    private func installContentView(_ hostedView: NSView) {
+        let background = makeMonitorPanelBackground()
+        hostedView.translatesAutoresizingMaskIntoConstraints = false
+        background.addSubview(hostedView)
+        NSLayoutConstraint.activate([
+            hostedView.leadingAnchor.constraint(equalTo: background.leadingAnchor),
+            hostedView.trailingAnchor.constraint(equalTo: background.trailingAnchor),
+            hostedView.topAnchor.constraint(equalTo: background.topAnchor),
+            hostedView.bottomAnchor.constraint(equalTo: background.bottomAnchor),
+        ])
+        panel.contentView = background
+        resizePanelToFit()
+    }
+
+    private func resizePanelToFit() {
+        guard let hostedView = hostingController?.view else { return }
+        hostedView.layoutSubtreeIfNeeded()
+        let fittingSize = hostedView.fittingSize
+        guard fittingSize.width > 0, fittingSize.height > 0 else { return }
+        panel.setContentSize(NSSize(
+            width: ceil(fittingSize.width),
+            height: ceil(fittingSize.height)
+        ))
+    }
+
+    private func positionPanelUnderStatusItem() {
         guard let button = statusItem.button else { return }
-        if presentation.isPinned {
-            installPinnedAnchorIfPossible()
-        }
-        if let pinnedAnchor {
-            showPopover(relativeTo: pinnedAnchor.positioningView)
+        let pointer = NSEvent.mouseLocation
+        guard let screen = button.window?.screen
+            ?? NSScreen.screens.first(where: { $0.frame.contains(pointer) })
+            ?? NSScreen.main else { return }
+        let buttonFrame = screenFrame(of: button)
+        let anchorFrame = if let buttonFrame,
+                             buttonFrame.maxY >= screen.visibleFrame.maxY - 1 {
+            buttonFrame
         } else {
-            showPopover(relativeTo: button)
+            NSRect(
+                x: pointer.x,
+                y: screen.visibleFrame.maxY,
+                width: 0,
+                height: 0
+            )
         }
-        configurePopoverWindowIfAvailable()
-        NSApp.activate(ignoringOtherApps: true)
-        popover.contentViewController?.view.window?.makeKey()
+        let visibleFrame = screen.visibleFrame.insetBy(dx: 8, dy: 8)
+        let proposedX = anchorFrame.midX - panel.frame.width / 2
+        let x = min(max(proposedX, visibleFrame.minX), visibleFrame.maxX - panel.frame.width)
+        let proposedY = anchorFrame.minY - panel.frame.height - 6
+        let y = max(proposedY, visibleFrame.minY)
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
-    private func showPopover(relativeTo view: NSView) {
-        popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
-    }
-
-    private func installPinnedAnchorIfPossible() {
-        guard pinnedAnchor == nil,
-              let button = statusItem.button,
-              let frame = screenFrame(of: button) else { return }
-        let anchor = PinnedPopoverAnchor(frame: frame)
-        pinnedAnchor = anchor
-        if popover.isShown {
-            showPopover(relativeTo: anchor.positioningView)
-        }
-    }
-
-    private func restoreStatusItemAnchor() {
-        if popover.isShown, let button = statusItem.button {
-            showPopover(relativeTo: button)
-        }
-        pinnedAnchor?.close()
-        pinnedAnchor = nil
+    private func positionPanelNearPointer() {
+        let pointer = NSEvent.mouseLocation
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) })
+            ?? NSScreen.main else { return }
+        let origin = PanelPointerPlacement.origin(
+            panelSize: panel.frame.size,
+            pointer: pointer,
+            visibleFrame: screen.visibleFrame
+        )
+        panel.setFrameOrigin(origin)
     }
 
     private func screenFrame(of view: NSView) -> NSRect? {
         guard let window = view.window else { return nil }
-        let frameInWindow = view.convert(view.bounds, to: nil)
-        return window.convertToScreen(frameInWindow)
+        return window.convertToScreen(view.convert(view.bounds, to: nil))
     }
 
-    private func configurePopoverWindowIfAvailable() {
-        guard let window = popover.contentViewController?.view.window else { return }
-        configureMonitorPopoverWindow(window, isPinned: presentation.isPinned)
+    func windowDidResignKey(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  !presentation.isPinned,
+                  !panel.isKeyWindow else { return }
+            panel.orderOut(nil)
+        }
     }
 }

@@ -7,7 +7,10 @@ struct CPAMonitorBarApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(model: appDelegate.model)
+            SettingsView(
+                model: appDelegate.model,
+                shortcutController: appDelegate.globalShortcutController
+            )
         }
     }
 }
@@ -16,13 +19,18 @@ struct CPAMonitorBarApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = MonitorViewModel()
     let windowPresentation = MonitorWindowPresentation()
+    let globalShortcutController = GlobalShortcutController()
     private var statusBarController: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusBarController = StatusBarController(
+        let statusBarController = StatusBarController(
             model: model,
             presentation: windowPresentation
         )
+        self.statusBarController = statusBarController
+        globalShortcutController.start { [weak statusBarController] in
+            statusBarController?.togglePanel(anchor: .pointer)
+        }
         Task { await model.start() }
     }
 }

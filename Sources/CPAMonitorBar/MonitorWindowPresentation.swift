@@ -1,4 +1,3 @@
-import AppKit
 import Combine
 
 @MainActor
@@ -9,9 +8,4 @@ final class MonitorWindowPresentation: ObservableObject {
     func togglePin() {
         isPinned.toggle()
     }
-}
-
-@MainActor
-func configureMonitorPopover(_ popover: NSPopover, isPinned: Bool) {
-    popover.behavior = isPinned ? .applicationDefined : .transient
 }

@@ -2,7 +2,7 @@ extension MonitorViewModel {
     func login(password providedPassword: String) async {
         guard let credentialStore else { return }
         do {
-            let password = try resolvePassword(providedPassword, from: credentialStore)
+            let password = try await resolvePassword(providedPassword, from: credentialStore)
             await authenticate(
                 password: password,
                 passwordToSave: providedPassword.isEmpty ? nil : providedPassword
@@ -16,7 +16,7 @@ extension MonitorViewModel {
     func loginWithSavedPassword() async {
         guard let credentialStore else { return }
         do {
-            guard let password = try credentialStore.loadPassword(), !password.isEmpty else {
+            guard let password = try await credentialStore.loadPassword(), !password.isEmpty else {
                 return
             }
             await authenticate(password: password, passwordToSave: nil)
@@ -46,7 +46,7 @@ extension MonitorViewModel {
                 if isCurrent(generation) { loginError = "登录成功响应未建立管理员会话" }
                 return
             }
-            if let passwordToSave { try credentialStore.savePassword(passwordToSave) }
+            if let passwordToSave { try await credentialStore.savePassword(passwordToSave) }
             isAuthenticated = true
             await refresh()
             startPolling()

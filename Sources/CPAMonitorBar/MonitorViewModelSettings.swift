@@ -50,7 +50,7 @@ extension MonitorViewModel {
         if root.requiresInsecureHTTPConsent, consentToInsecureHTTP {
             insecureHTTPConsentStore.record(normalizedURL)
         }
-        try previousCredentialStore?.deletePassword()
+        try await previousCredentialStore?.deletePassword()
     }
 }
 

@@ -2,7 +2,7 @@
 
 CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控客户端。它把日常需要关注的使用概览、请求事件、认证文件限额和供应商健康情况压缩到一个轻量 Bar 窗口中，同时保留快速跳转到 Keeper Web 管理界面的入口。
 
-- 当前版本：`1.0.0`
+- 当前版本：`1.1.0`
 - 系统要求：macOS 26.5 及以上
 - 架构：Apple Silicon（arm64）与 Intel（x86_64）Universal 2
 - 技术栈：Swift、SwiftUI、Swift Package Manager
@@ -34,7 +34,9 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 
 - 最近 8 小时、今天、昨天三种用量时间范围，默认今天。
 - 30 秒至 5 分钟的自动刷新频率与手动刷新。
-- 当前运行期间可将监控窗口置顶；取消置顶或重启应用后恢复普通 Bar 模式。
+- 当前运行期间可将同一个无边框监控面板置顶，并在所在显示器的各桌面中保持前置；取消置顶或重启应用后恢复普通 Bar 模式。
+- 面板不显示菜单栏指向尖头，失焦后保持原有配色，并使用 macOS 原生窗口拖动。
+- 可在设置中配置无默认值的全局快捷键，用于在鼠标附近显示或收起监控窗口，无需辅助功能权限。
 - 开机自动启动。
 - 设置窗口前置、管理员密码配置和应用版本展示。
 - 启动后使用 Keychain 中已保存的密码自动恢复登录。
@@ -57,7 +59,7 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 1. 打开 DMG，将 `CPAMonitorBar.app` 拖入 `Applications`。
 2. 启动菜单栏应用并打开“设置”。
 3. 填写 Keeper 根 URL，例如 `https://keeper.example/cpa`。
-4. 填写管理员密码，选择刷新频率、时间范围和是否开机启动。
+4. 填写管理员密码，选择刷新频率、时间范围、全局快捷键和是否开机启动。
 5. 点击“应用并关闭”，应用会保存配置、登录并刷新监控数据。
 
 测试包使用 ad-hoc 签名，没有 Developer ID 签名或 Apple 公证。如果 Gatekeeper 阻止首次启动，请在 Finder 中右键选择“打开”，或前往“系统设置 → 隐私与安全性”确认打开；不要关闭 Gatekeeper。

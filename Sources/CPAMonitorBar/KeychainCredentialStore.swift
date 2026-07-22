@@ -2,9 +2,9 @@ import Foundation
 import Security
 
 protocol CredentialStore: Sendable {
-    func savePassword(_ password: String) throws
-    func loadPassword() throws -> String?
-    func deletePassword() throws
+    func savePassword(_ password: String) async throws
+    func loadPassword() async throws -> String?
+    func deletePassword() async throws
 }
 
 enum CredentialStoreError: Error, LocalizedError, Sendable {
@@ -31,7 +31,7 @@ final class KeychainCredentialStore: CredentialStore, @unchecked Sendable {
         self.account = account
     }
 
-    func savePassword(_ password: String) throws {
+    func savePassword(_ password: String) async throws {
         let data = Data(password.utf8)
         let status = SecItemUpdate(
             baseQuery as CFDictionary,
@@ -51,7 +51,7 @@ final class KeychainCredentialStore: CredentialStore, @unchecked Sendable {
         }
     }
 
-    func loadPassword() throws -> String? {
+    func loadPassword() async throws -> String? {
         var query = baseQuery
         query[kSecReturnData] = true
         query[kSecMatchLimit] = kSecMatchLimitOne
@@ -68,7 +68,7 @@ final class KeychainCredentialStore: CredentialStore, @unchecked Sendable {
         return value
     }
 
-    func deletePassword() throws {
+    func deletePassword() async throws {
         let status = SecItemDelete(baseQuery as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw CredentialStoreError.keychain(status)

@@ -1,4 +1,3 @@
-import AppKit
 import XCTest
 @testable import CPAMonitorBar
 
@@ -19,19 +18,4 @@ final class MonitorWindowPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.selectedTab, .events)
     }
 
-    func testPinStateConfiguresNativePopoverDismissBehavior() {
-        let presentation = MonitorWindowPresentation()
-        let popover = NSPopover()
-
-        configureMonitorPopover(popover, isPinned: presentation.isPinned)
-        XCTAssertEqual(popover.behavior, .transient)
-
-        presentation.togglePin()
-        configureMonitorPopover(popover, isPinned: presentation.isPinned)
-        XCTAssertEqual(popover.behavior, .applicationDefined)
-
-        presentation.togglePin()
-        configureMonitorPopover(popover, isPinned: presentation.isPinned)
-        XCTAssertEqual(popover.behavior, .transient)
-    }
 }

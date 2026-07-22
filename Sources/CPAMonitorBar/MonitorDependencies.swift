@@ -111,9 +111,12 @@ func displayMessage(_ error: Error) -> String {
     (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
 }
 
-func resolvePassword(_ provided: String, from store: any CredentialStore) throws -> String {
+func resolvePassword(
+    _ provided: String,
+    from store: any CredentialStore
+) async throws -> String {
     if !provided.isEmpty { return provided }
-    guard let stored = try store.loadPassword(), !stored.isEmpty else {
+    guard let stored = try await store.loadPassword(), !stored.isEmpty else {
         throw CredentialInputError.missingPassword
     }
     return stored

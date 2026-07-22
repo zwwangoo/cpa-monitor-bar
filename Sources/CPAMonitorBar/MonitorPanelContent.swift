@@ -1,11 +1,10 @@
 import AppKit
 import SwiftUI
 
-struct MonitorPopover: View {
+struct MonitorPanelContent: View {
     @ObservedObject var model: MonitorViewModel
     @ObservedObject var windowPresentation: MonitorWindowPresentation
     let onTogglePin: () -> Void
-    let onDragPinnedWindow: (CGSize, Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -29,6 +28,7 @@ struct MonitorPopover: View {
         }
         .padding(16)
         .frame(width: 420)
+        .environment(\.controlActiveState, .active)
     }
 
     private var windowToolbar: some View {
@@ -57,17 +57,15 @@ struct MonitorPopover: View {
     }
 
     private var dragHandle: some View {
-        Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.secondary)
-            .frame(width: 28, height: 28)
-            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { onDragPinnedWindow($0.translation, false) }
-                    .onEnded { onDragPinnedWindow($0.translation, true) }
-            )
+        ZStack {
+            Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            MonitorPanelDragRegion()
+        }
+        .frame(width: 28, height: 28)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
             .help("拖动置顶窗口")
             .accessibilityLabel("拖动置顶窗口")
     }

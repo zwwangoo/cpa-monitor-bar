@@ -5,11 +5,13 @@ import CPAClient
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var model: MonitorViewModel
+    let shortcutController: GlobalShortcutController
     @State private var baseURL = ""
     @State private var password = ""
     @State private var launchAtLogin = false
     @State private var refreshFrequency = RefreshFrequency.oneMinute
     @State private var usageRange = UsageTimeRange.today
+    @State private var globalShortcut: GlobalShortcut?
     @State private var consentToInsecureHTTP = false
     @State private var validationError: String?
     @State private var isApplying = false
@@ -79,6 +81,17 @@ struct SettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
+                Divider()
+                settingRow("全局快捷键") {
+                    ShortcutRecorder(
+                        shortcut: $globalShortcut,
+                        onRecordingChanged: handleShortcutRecording
+                    )
+                }
+                Text("未设置时不注册快捷键；重复按键可显示或收起监控窗口。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Divider()
                 settingRow("刷新频率") {
                     Picker("", selection: $refreshFrequency) {
@@ -207,15 +220,12 @@ struct SettingsView: View {
         validationError = nil
         isApplying = true
         let submittedPassword = password
+        let previousShortcut = shortcutController.shortcut
         Task {
             do {
-                try await model.applySettings(
-                    baseURL: baseURL,
+                try await applyChanges(
                     password: submittedPassword,
-                    usageRange: usageRange,
-                    refreshFrequency: refreshFrequency,
-                    launchAtLogin: launchAtLogin,
-                    consentToInsecureHTTP: consentToInsecureHTTP
+                    previousShortcut: previousShortcut
                 )
                 baseURL = model.baseURL
                 password = ""
@@ -233,7 +243,38 @@ struct SettingsView: View {
         launchAtLogin = model.launchAtLoginEnabled
         refreshFrequency = model.refreshFrequency
         usageRange = model.usageRange
+        globalShortcut = shortcutController.shortcut
         consentToInsecureHTTP = model.hasInsecureHTTPConsent(for: baseURL)
+        validationError = shortcutController.registrationError
+    }
+
+    private func applyChanges(
+        password: String,
+        previousShortcut: GlobalShortcut?
+    ) async throws {
+        try shortcutController.apply(globalShortcut)
+        do {
+            try await model.applySettings(
+                baseURL: baseURL,
+                password: password,
+                usageRange: usageRange,
+                refreshFrequency: refreshFrequency,
+                launchAtLogin: launchAtLogin,
+                consentToInsecureHTTP: consentToInsecureHTTP
+            )
+        } catch {
+            try? shortcutController.apply(previousShortcut)
+            throw error
+        }
+    }
+
+    private func handleShortcutRecording(_ isRecording: Bool) {
+        if isRecording {
+            shortcutController.suspend()
+        } else {
+            do { try shortcutController.resume() }
+            catch { validationError = error.localizedDescription }
+        }
     }
 
     private func closeSettingsWindow() {
