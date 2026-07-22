@@ -4,6 +4,17 @@ import CPAModels
 @testable import CPAMonitorBar
 
 final class DashboardFormattingTests: XCTestCase {
+    func testSharedMetricFormatting() {
+        XCTAssertEqual(compactInteger(nil), "—")
+        XCTAssertEqual(compactInteger(42), "42")
+        XCTAssertEqual(formattedInteger(2_351), "2,351")
+        XCTAssertEqual(formattedPercent(97.54), "97.5%")
+        XCTAssertEqual(formattedPercent(nil), "—")
+        XCTAssertEqual(formattedCurrency(12.5), "$12.50")
+        XCTAssertEqual(formattedCurrency(0.125), "$0.1250")
+        XCTAssertEqual(formattedCurrency(nil), "—")
+    }
+
     func testQuotaRemainingPercentPrefersRemainingFraction() throws {
         let row = try decodeQuota(
             #"{"key":"primary","remainingFraction":"0.72","usedPercent":"90"}"#
@@ -148,6 +159,14 @@ final class DashboardFormattingTests: XCTestCase {
         XCTAssertEqual(compactLatency(nil), "—")
         XCTAssertEqual(compactLatency(125), "125ms")
         XCTAssertEqual(compactLatency(1_250), "1.2s")
+        XCTAssertFalse(compactLatency(Int.min).isEmpty)
+    }
+
+    func testCredentialRequestCountDoesNotOverflow() {
+        let count = credentialRequestCount(success: Int.max, failure: Int.max)
+
+        XCTAssertTrue(count.isFinite)
+        XCTAssertGreaterThan(count, Double(Int.max))
     }
 
     func testEventLatencyCombinesTTFTAndTotalLatency() {

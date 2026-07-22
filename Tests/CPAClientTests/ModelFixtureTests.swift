@@ -35,13 +35,9 @@ final class ModelFixtureTests: XCTestCase {
         XCTAssertEqual(overview.serviceHealth?.successRate, 97.5)
     }
 
-    func testRealtimeAndAnalysisCompositionDecode() throws {
-        let realtime: RealtimeOverviewResponse = try fixture("realtime")
+    func testAnalysisCompositionDecode() throws {
         let analysis: UsageAnalysisResponse = try fixture("analysis")
 
-        XCTAssertEqual(realtime.tokenVelocity.first?.tokensPerMinute, 800)
-        XCTAssertEqual(realtime.responseLevel.first?.latencyP95MS, 1200)
-        XCTAssertEqual(realtime.requestLevel.first?.requestsPerMinute, 4.5)
         XCTAssertEqual(analysis.modelComposition.first?.label, "gpt-example")
         XCTAssertEqual(analysis.modelComposition.first?.percent, 75)
         XCTAssertEqual(analysis.aiProviderComposition.first?.label, "Example Provider")
@@ -74,37 +70,15 @@ final class ModelFixtureTests: XCTestCase {
         XCTAssertNil(totals.totalRequests)
     }
 
-    func testRealtimeAllowsMissingOptionalNumericFields() throws {
+    func testFlexibleDoubleRejectsNonFiniteStringValues() throws {
         let payload = Data(
-            #"{"token_velocity":[{}],"response_level":[{}],"request_level":[{}]}"#.utf8
+            #"{"model_composition":[{"percent":"nan","cost_usd":"inf"}]}"#.utf8
         )
 
-        let realtime = try JSONDecoder().decode(RealtimeOverviewResponse.self, from: payload)
+        let analysis = try JSONDecoder().decode(UsageAnalysisResponse.self, from: payload)
 
-        XCTAssertEqual(realtime.tokenVelocity.count, 1)
-        XCTAssertNil(realtime.tokenVelocity[0].tokensPerMinute)
-        XCTAssertEqual(realtime.responseLevel.count, 1)
-        XCTAssertNil(realtime.responseLevel[0].latencyP95MS)
-        XCTAssertEqual(realtime.requestLevel.count, 1)
-        XCTAssertNil(realtime.requestLevel[0].requestsPerMinute)
-    }
-
-    func testRealtimeAcceptsStringEncodedAuxiliaryMetrics() throws {
-        let payload = Data(#"""
-        {
-          "response_distribution":{"ttft":{"average_line":[{"avg_ms":"12.5"}],"particles":[{"ms":"120","count":"1"}],"total_particles":"2","sampled":"true","max_particles":"100"}},
-          "current_usage":{"models":[{"tokens":"800","requests":"4","cost":"1.25","share":"100"}]},
-          "cache_level":[{"cache_read_rate":"25","cache_read_tokens":"200","cache_creation_tokens":"10","input_tokens":"800"}]
-        }
-        """#.utf8)
-
-        let realtime = try JSONDecoder().decode(RealtimeOverviewResponse.self, from: payload)
-
-        XCTAssertEqual(realtime.responseDistribution?.ttft?.averageLine.first?.avgMS, 12.5)
-        XCTAssertEqual(realtime.responseDistribution?.ttft?.particles.first?.ms, 120)
-        XCTAssertEqual(realtime.responseDistribution?.ttft?.sampled, true)
-        XCTAssertEqual(realtime.currentUsage?.models.first?.tokens, 800)
-        XCTAssertEqual(realtime.cacheLevel.first?.cacheReadRate, 25)
+        XCTAssertNil(analysis.modelComposition.first?.percent)
+        XCTAssertNil(analysis.modelComposition.first?.costUSD)
     }
 
     func testAnalysisAcceptsStringEncodedDiagnosticMetrics() throws {

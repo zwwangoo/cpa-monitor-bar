@@ -4,6 +4,7 @@ import Security
 protocol CredentialStore: Sendable {
     func savePassword(_ password: String) throws
     func loadPassword() throws -> String?
+    func deletePassword() throws
 }
 
 enum CredentialStoreError: Error, LocalizedError, Sendable {
@@ -65,6 +66,13 @@ final class KeychainCredentialStore: CredentialStore, @unchecked Sendable {
             throw CredentialStoreError.invalidData
         }
         return value
+    }
+
+    func deletePassword() throws {
+        let status = SecItemDelete(baseQuery as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw CredentialStoreError.keychain(status)
+        }
     }
 
     private var baseQuery: [CFString: Any] {

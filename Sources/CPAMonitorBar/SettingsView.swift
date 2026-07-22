@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var launchAtLogin = false
     @State private var refreshFrequency = RefreshFrequency.oneMinute
     @State private var usageRange = UsageTimeRange.today
+    @State private var consentToInsecureHTTP = false
     @State private var validationError: String?
     @State private var isApplying = false
 
@@ -33,6 +34,9 @@ struct SettingsView: View {
         .frame(width: 520, height: 540)
         .controlSize(.regular)
         .onAppear(perform: loadCurrentSettings)
+        .onChange(of: baseURL) { _, newValue in
+            consentToInsecureHTTP = model.hasInsecureHTTPConsent(for: newValue)
+        }
     }
 
     private var connectionCard: some View {
@@ -55,6 +59,14 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                if requiresInsecureHTTPConsent {
+                    Toggle(
+                        "我确认仅在可信网络中使用未加密的远程 HTTP 服务",
+                        isOn: $consentToInsecureHTTP
+                    )
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+                }
             }
         }
     }
@@ -116,7 +128,10 @@ struct SettingsView: View {
             }
             Button("应用并关闭") { apply() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(isApplying || trimmedBaseURL.isEmpty)
+                .disabled(
+                    isApplying || trimmedBaseURL.isEmpty
+                        || requiresInsecureHTTPConsent && !consentToInsecureHTTP
+                )
         }
     }
 
@@ -181,6 +196,12 @@ struct SettingsView: View {
         baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var requiresInsecureHTTPConsent: Bool {
+        guard let root = try? CPAServiceRoot(trimmedBaseURL) else { return false }
+        return root.requiresInsecureHTTPConsent
+            && !model.hasInsecureHTTPConsent(for: trimmedBaseURL)
+    }
+
     private func apply() {
         guard !isApplying else { return }
         validationError = nil
@@ -193,7 +214,8 @@ struct SettingsView: View {
                     password: submittedPassword,
                     usageRange: usageRange,
                     refreshFrequency: refreshFrequency,
-                    launchAtLogin: launchAtLogin
+                    launchAtLogin: launchAtLogin,
+                    consentToInsecureHTTP: consentToInsecureHTTP
                 )
                 baseURL = model.baseURL
                 password = ""
@@ -211,6 +233,7 @@ struct SettingsView: View {
         launchAtLogin = model.launchAtLoginEnabled
         refreshFrequency = model.refreshFrequency
         usageRange = model.usageRange
+        consentToInsecureHTTP = model.hasInsecureHTTPConsent(for: baseURL)
     }
 
     private func closeSettingsWindow() {

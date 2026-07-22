@@ -47,6 +47,8 @@ public enum CPAClientError: Error, Equatable, LocalizedError, Sendable {
     case serverUnavailable(statusCode: Int)
     case network(String)
     case invalidResponse
+    case responseTooLarge(limitBytes: Int)
+    case tooManyItems(limit: Int)
     case decoding(String)
 
     public var errorDescription: String? {
@@ -58,6 +60,8 @@ public enum CPAClientError: Error, Equatable, LocalizedError, Sendable {
         case let .serverUnavailable(code): "服务暂不可用（HTTP \(code)）"
         case let .network(message): "网络错误：\(message)"
         case .invalidResponse: "服务返回了无效响应"
+        case let .responseTooLarge(limit): "服务响应超过安全上限（\(limit) 字节）"
+        case let .tooManyItems(limit): "服务返回的列表超过安全上限（\(limit) 项）"
         case let .decoding(message): "响应格式无法解析：\(message)"
         }
     }

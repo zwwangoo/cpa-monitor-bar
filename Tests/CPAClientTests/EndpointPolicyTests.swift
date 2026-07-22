@@ -42,6 +42,7 @@ final class EndpointPolicyTests: XCTestCase {
         let root = try CPAServiceRoot("http://keeper.example:8080/cpa/")
 
         XCTAssertEqual(root.url.absoluteString, "http://keeper.example:8080/cpa")
+        XCTAssertTrue(root.requiresInsecureHTTPConsent)
         XCTAssertEqual(
             try root.url(for: .version).absoluteString,
             "http://keeper.example:8080/cpa/api/v1/version"
@@ -98,11 +99,23 @@ final class EndpointPolicyTests: XCTestCase {
             try CPAServiceRoot("http://127.0.0.1:8080").url.absoluteString,
             "http://127.0.0.1:8080/cpa"
         )
+        XCTAssertFalse(
+            try CPAServiceRoot("http://localhost:8080/cpa").requiresInsecureHTTPConsent
+        )
+        XCTAssertFalse(
+            try CPAServiceRoot("http://127.0.0.1:8080").requiresInsecureHTTPConsent
+        )
+        XCTAssertFalse(
+            try CPAServiceRoot("http://[::1]:8080").requiresInsecureHTTPConsent
+        )
+        XCTAssertFalse(
+            try CPAServiceRoot("https://keeper.example/cpa").requiresInsecureHTTPConsent
+        )
     }
 
     func testEndpointMethodsAreFixed() {
         let gets: [CPAEndpoint] = [
-            .health, .session, .status, .version, .overview, .realtime, .analysis,
+            .health, .session, .status, .version, .overview, .analysis,
             .usageEvents, .authFiles, .providers,
         ]
         for endpoint in gets {

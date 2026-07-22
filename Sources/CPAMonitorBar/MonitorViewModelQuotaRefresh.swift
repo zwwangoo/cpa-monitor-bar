@@ -9,6 +9,7 @@ private struct QuotaTaskPollResult: Sendable {
 
 extension MonitorViewModel {
     static let maximumQuotaRefreshPolls = 60
+    static let maximumQuotaRefreshTasks = 200
 
     func refreshQuota(authIndexes: [String]) {
         let indexes = normalizedQuotaIndexes(authIndexes)
@@ -16,7 +17,11 @@ extension MonitorViewModel {
               isAuthenticated,
               !isRefreshingQuota,
               !indexes.isEmpty else { return }
-        let generation = currentConnectionGeneration
+        guard indexes.count <= Self.maximumQuotaRefreshTasks else {
+            quotaRefreshError = "单次最多刷新 \(Self.maximumQuotaRefreshTasks) 个账号"
+            return
+        }
+        let generation = connectionGeneration
         isRefreshingQuota = true
         quotaRefreshError = nil
         quotaRefreshTask = Task { [weak self] in
@@ -43,8 +48,11 @@ extension MonitorViewModel {
             return
         }
         let duplicates = batch.rejected.filter { $0.error?.lowercased() == "duplicate" }
-        var pending = Set(batch.tasks.map(\.authIndex) + duplicates.map(\.authIndex))
+        let requested = Set(indexes)
+        let reported = Set(batch.tasks.map(\.authIndex) + duplicates.map(\.authIndex))
+        var pending = reported.intersection(requested)
         var failedCount = batch.rejected.count - duplicates.count
+            + reported.subtracting(requested).count
         var pollCount = 0
         while !pending.isEmpty, pollCount < Self.maximumQuotaRefreshPolls {
             let results = await pollQuotaTasks(pending, using: activeClient)
@@ -162,5 +170,4 @@ extension MonitorViewModel {
         }
     }
 
-    private var currentConnectionGeneration: Int { connectionGeneration }
 }

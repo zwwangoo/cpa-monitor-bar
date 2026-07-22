@@ -4,6 +4,42 @@ import XCTest
 
 @MainActor
 final class MonitorViewModelQuotaRefreshTests: XCTestCase {
+    func testIgnoresUnexpectedTasksReturnedByServer() async {
+        let client = CountingClient(
+            authenticated: true,
+            quotaRefreshBatchBody: #"{"tasks":[{"authIndex":"unexpected"}]}"#
+        )
+        let model = Dependencies(
+            savedURL: "https://keeper.example/cpa",
+            clients: [client]
+        ).makeModel()
+        await model.start()
+
+        model.refreshQuota(authIndexes: ["auth-1"])
+        let finished = await eventually { !model.isRefreshingQuota }
+        let calls = await client.calls
+
+        XCTAssertTrue(finished)
+        XCTAssertFalse(calls.contains(.quotaRefreshStatus("unexpected")))
+        XCTAssertEqual(model.quotaRefreshError, "1 个账号刷新失败")
+    }
+
+    func testRejectsQuotaRefreshLargerThanClientLimit() async {
+        let client = CountingClient(authenticated: true)
+        let model = Dependencies(
+            savedURL: "https://keeper.example/cpa",
+            clients: [client]
+        ).makeModel()
+        await model.start()
+        let indexes = (0...MonitorViewModel.maximumQuotaRefreshTasks).map { "auth-\($0)" }
+
+        model.refreshQuota(authIndexes: indexes)
+        let calls = await client.calls
+
+        XCTAssertFalse(calls.contains(.refreshQuota(indexes)))
+        XCTAssertNotNil(model.quotaRefreshError)
+    }
+
     func testPollsAcceptedTasksAndReloadsCache() async {
         let refreshedCache = #"{"items":[{"auth_index":"auth-1","status":"completed","quota":{"quota":[{"key":"5h","remainingFraction":0.9}]}}]}"#
         let client = CountingClient(

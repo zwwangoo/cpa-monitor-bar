@@ -18,7 +18,6 @@ extension MonitorViewModel {
             keeperStatus.updatedAt,
             keeperVersion.updatedAt,
             overview.updatedAt,
-            realtime.updatedAt,
             analysis.updatedAt,
             events.updatedAt,
             authFiles.updatedAt,

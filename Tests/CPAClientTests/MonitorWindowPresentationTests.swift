@@ -11,10 +11,10 @@ final class MonitorWindowPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.selectedTab, .overview)
 
         presentation.selectedTab = .events
-        presentation.pin()
+        presentation.togglePin()
         XCTAssertTrue(presentation.isPinned)
 
-        presentation.unpin()
+        presentation.togglePin()
         XCTAssertFalse(presentation.isPinned)
         XCTAssertEqual(presentation.selectedTab, .events)
     }

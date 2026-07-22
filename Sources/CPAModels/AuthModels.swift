@@ -31,11 +31,3 @@ public struct AuthSessionResponse: Codable, Equatable, Sendable {
         apiKey = try values.decodeIfPresent(SessionAPIKey.self, forKey: .apiKey)
     }
 }
-
-public struct LoginResponse: Codable, Equatable, Sendable {
-    public let sessionToken: String?
-
-    enum CodingKeys: String, CodingKey {
-        case sessionToken = "session_token"
-    }
-}

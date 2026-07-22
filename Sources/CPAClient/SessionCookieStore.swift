@@ -17,7 +17,7 @@ public final class SessionCookieStore: @unchecked Sendable {
     public func makeSession(protocolClasses: [AnyClass]? = nil) -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = storage
-        configuration.httpShouldSetCookies = true
+        configuration.httpShouldSetCookies = false
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
         if let protocolClasses {

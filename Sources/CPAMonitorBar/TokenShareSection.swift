@@ -110,17 +110,17 @@ private struct TokenShareRow: View {
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
                 Spacer()
-                Text(String(format: "%.2f%%", tokenSharePercent(item)))
+                Text(formattedPercent(tokenSharePercent(item), fractionDigits: 2))
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
             shareTrack
             HStack(spacing: 6) {
-                TokenMetricPill(label: "Tokens", value: compact(item.totalTokens))
-                TokenMetricPill(label: "请求", value: integer(item.requests))
+                TokenMetricPill(label: "Tokens", value: compactInteger(item.totalTokens))
+                TokenMetricPill(label: "请求", value: formattedInteger(item.requests))
                 if let cost = item.costUSD {
-                    TokenMetricPill(label: "成本", value: currency(cost))
+                    TokenMetricPill(label: "成本", value: formattedCurrency(cost))
                 }
             }
         }
@@ -143,17 +143,6 @@ private struct TokenShareRow: View {
         .frame(height: 6)
     }
 
-    private func compact(_ value: Int?) -> String {
-        value?.formatted(.number.notation(.compactName)) ?? "—"
-    }
-
-    private func integer(_ value: Int?) -> String {
-        value?.formatted() ?? "—"
-    }
-
-    private func currency(_ value: Double) -> String {
-        value >= 1 ? String(format: "$%.2f", value) : String(format: "$%.4f", value)
-    }
 }
 
 private struct TokenMetricPill: View {

@@ -1,5 +1,4 @@
 import SwiftUI
-import CPAModels
 
 struct MetricCard: View {
     let title: String
@@ -34,28 +33,6 @@ struct SectionFeedback<Value: Sendable>: View {
     var body: some View {
         if let message = state.errorMessage {
             ErrorBanner(message: message, stale: state.isStale)
-        }
-    }
-}
-
-struct CompositionRows: View {
-    let items: [CompositionItem]
-
-    var body: some View {
-        if items.isEmpty {
-            Text("暂无数据").font(.caption).foregroundStyle(.tertiary)
-        } else {
-            ForEach(items) { item in
-                HStack {
-                    Text(item.label ?? item.key ?? "未知")
-                        .lineLimit(1)
-                    Spacer()
-                    Text(item.percent.map { String(format: "%.1f%%", $0) } ?? "—")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
-                .font(.caption)
-            }
         }
     }
 }

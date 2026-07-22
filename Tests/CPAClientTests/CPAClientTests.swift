@@ -16,7 +16,6 @@ final class CPAClientTests: XCTestCase {
             "/cpa/api/v1/status": #"{"running":true,"sync_running":false}"#,
             "/cpa/api/v1/version": #"{"version":"v1.13.5"}"#,
             "/cpa/api/v1/usage/overview": try fixtureBody("overview"),
-            "/cpa/api/v1/usage/overview/realtime": try fixtureBody("realtime"),
             "/cpa/api/v1/usage/analysis": try fixtureBody("analysis"),
         ]
         StubURLProtocol.handler = { request in
@@ -41,7 +40,6 @@ final class CPAClientTests: XCTestCase {
         _ = try await client.status()
         _ = try await client.version()
         _ = try await client.overview()
-        _ = try await client.realtime()
         _ = try await client.analysis()
     }
 
@@ -165,7 +163,7 @@ final class CPAClientTests: XCTestCase {
             Self.response(for: request, status: 503, body: "{}")
         }
         await assertClientError(.serverUnavailable(statusCode: 503)) {
-            _ = try await self.makeClient().realtime()
+            _ = try await self.makeClient().analysis()
         }
     }
 

@@ -172,10 +172,10 @@ struct MonitorPopover: View {
         GroupBox("使用概览") {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    MetricCard(title: "请求", value: integer(model.overview.value?.usage?.totalRequests))
-                    MetricCard(title: "Tokens", value: integer(model.overview.value?.usage?.totalTokens))
-                    MetricCard(title: "成功率", value: percent(model.overview.value?.serviceHealth?.successRate))
-                    MetricCard(title: "总成本", value: currency(model.overview.value?.summary?.totalCost))
+                    MetricCard(title: "请求", value: compactInteger(model.overview.value?.usage?.totalRequests))
+                    MetricCard(title: "Tokens", value: compactInteger(model.overview.value?.usage?.totalTokens))
+                    MetricCard(title: "成功率", value: formattedPercent(model.overview.value?.serviceHealth?.successRate))
+                    MetricCard(title: "总成本", value: formattedCurrency(model.overview.value?.summary?.totalCost))
                 }
                 SectionFeedback(state: model.overview)
             }
@@ -184,19 +184,6 @@ struct MonitorPopover: View {
 
     private var footer: some View {
         MonitorFooter(model: model)
-    }
-
-    private func integer(_ value: Int?) -> String {
-        value?.formatted(.number.notation(.compactName)) ?? "—"
-    }
-
-    private func percent(_ value: Double?) -> String {
-        value.map { String(format: "%.1f%%", $0) } ?? "—"
-    }
-
-    private func currency(_ value: Double?) -> String {
-        guard let value else { return "—" }
-        return value >= 1 ? String(format: "$%.2f", value) : String(format: "$%.4f", value)
     }
 
     private var dashboardHeight: CGFloat {

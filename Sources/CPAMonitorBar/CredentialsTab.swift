@@ -232,7 +232,8 @@ private struct QuotaRow: View {
     }
 
     private var remainingText: String {
-        quotaRemainingPercent(row).map { String(format: "%.0f%% 可用", $0) } ?? "—"
+        guard let percent = quotaRemainingPercent(row) else { return "—" }
+        return "\(formattedPercent(percent, fractionDigits: 0)) 可用"
     }
 
     private func remainingColor(_ value: Double) -> Color {

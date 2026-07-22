@@ -8,7 +8,7 @@ struct CredentialHealthTrend: View {
         if let health, !health.buckets.isEmpty {
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text("成功率 \(percent(health.successRate))")
+                    Text("成功率 \(formattedPercent(health.successRate))")
                     Spacer()
                     Text("失败 \(health.totalFailure ?? 0)")
                 }
@@ -38,7 +38,7 @@ struct CredentialHealthTrend: View {
     }
 
     private func color(for bucket: UsageCredentialHealthBucket) -> Color {
-        let total = (bucket.success ?? 0) + (bucket.failure ?? 0)
+        let total = credentialRequestCount(success: bucket.success, failure: bucket.failure)
         guard total > 0 else { return .secondary.opacity(0.25) }
         if bucket.failure == 0 { return .green }
         if (bucket.rate ?? 0) >= 80 { return .orange }
@@ -49,18 +49,16 @@ struct CredentialHealthTrend: View {
         _ bucket: UsageCredentialHealthBucket,
         in buckets: [UsageCredentialHealthBucket]
     ) -> CGFloat {
-        let count = (bucket.success ?? 0) + (bucket.failure ?? 0)
-        let maximum = buckets.map { ($0.success ?? 0) + ($0.failure ?? 0) }.max() ?? 0
+        let count = credentialRequestCount(success: bucket.success, failure: bucket.failure)
+        let maximum = buckets.map {
+            credentialRequestCount(success: $0.success, failure: $0.failure)
+        }.max() ?? 0
         guard maximum > 0 else { return 4 }
-        return max(4, 36 * CGFloat(count) / CGFloat(maximum))
+        return max(4, 36 * count / maximum)
     }
 
     private func bucketHelp(_ bucket: UsageCredentialHealthBucket) -> String {
         "\(dashboardShortTime(bucket.startTime))–\(dashboardShortTime(bucket.endTime)) · "
             + "成功 \(bucket.success ?? 0) / 失败 \(bucket.failure ?? 0)"
-    }
-
-    private func percent(_ value: Double?) -> String {
-        value.map { String(format: "%.1f%%", $0) } ?? "—"
     }
 }

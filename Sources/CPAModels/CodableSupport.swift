@@ -3,9 +3,11 @@ import Foundation
 extension KeyedDecodingContainer {
     func flexibleDoubleIfPresent(forKey key: Key) throws -> Double? {
         guard contains(key), try !decodeNil(forKey: key) else { return nil }
-        if let value = try? decode(Double.self, forKey: key) { return value }
+        if let value = try? decode(Double.self, forKey: key) {
+            return value.isFinite ? value : nil
+        }
         if let text = try? decode(String.self, forKey: key), let value = Double(text) {
-            return value
+            return value.isFinite ? value : nil
         }
         return nil
     }

@@ -7,6 +7,7 @@ import CPAModels
 final class Dependencies {
     let baseURLStore: MemoryBaseURLStore
     let preferencesStore: MemoryMonitorPreferencesStore
+    let insecureHTTPConsentStore: MemoryInsecureHTTPConsentStore
     let launchAtLoginController: RecordingLaunchAtLoginController
     let credentialFactory: CredentialFactoryRecorder
     let clientFactory: ClientFactoryRecorder
@@ -20,6 +21,7 @@ final class Dependencies {
     ) {
         baseURLStore = MemoryBaseURLStore(baseURL: savedURL)
         preferencesStore = MemoryMonitorPreferencesStore(preferences: preferences)
+        insecureHTTPConsentStore = MemoryInsecureHTTPConsentStore()
         launchAtLoginController = RecordingLaunchAtLoginController(isEnabled: launchAtLogin)
         credentialFactory = CredentialFactoryRecorder(savedPassword: savedPassword)
         clientFactory = ClientFactoryRecorder(clients: clients)
@@ -32,6 +34,7 @@ final class Dependencies {
         MonitorViewModel(
             baseURLStore: baseURLStore,
             preferencesStore: preferencesStore,
+            insecureHTTPConsentStore: insecureHTTPConsentStore,
             launchAtLoginController: launchAtLoginController,
             credentialStoreFactory: credentialFactory.makeStore,
             clientFactory: clientFactory.makeClient,
@@ -39,6 +42,13 @@ final class Dependencies {
             quotaRefreshPollingInterval: quotaRefreshPollingInterval
         )
     }
+}
+
+final class MemoryInsecureHTTPConsentStore: InsecureHTTPConsentStoring {
+    private var values = Set<String>()
+
+    func contains(_ normalizedURL: String) -> Bool { values.contains(normalizedURL) }
+    func record(_ normalizedURL: String) { values.insert(normalizedURL) }
 }
 
 final class MemoryMonitorPreferencesStore: MonitorPreferencesStoring {
@@ -87,21 +97,29 @@ final class ClientFactoryRecorder {
 @MainActor
 final class CredentialFactoryRecorder {
     let store: RecordingCredentialStore
+    private(set) var stores: [RecordingCredentialStore]
     private(set) var callCount = 0
+
+    var latestStore: RecordingCredentialStore { stores[stores.count - 1] }
 
     init(savedPassword: String?) {
         store = RecordingCredentialStore(savedPassword: savedPassword)
+        stores = [store]
     }
 
     func makeStore(_ root: CPAServiceRoot) -> any CredentialStore {
         _ = root
         callCount += 1
-        return store
+        if callCount == 1 { return store }
+        let next = RecordingCredentialStore(savedPassword: nil)
+        stores.append(next)
+        return next
     }
 }
 
 final class RecordingCredentialStore: CredentialStore, @unchecked Sendable {
     private(set) var loadCount = 0
+    private(set) var deleteCount = 0
     private(set) var savedPassword: String?
 
     init(savedPassword: String?) {
@@ -113,11 +131,15 @@ final class RecordingCredentialStore: CredentialStore, @unchecked Sendable {
         loadCount += 1
         return savedPassword
     }
+    func deletePassword() throws {
+        deleteCount += 1
+        savedPassword = nil
+    }
 }
 
 actor CountingClient: CPAServiceClient {
     enum Call: Equatable {
-        case health, session, status, version, overview, realtime, analysis
+        case health, session, status, version, overview, analysis
         case events, authFiles, providers, quotaCache([String])
         case refreshQuota([String]), quotaRefreshStatus(String)
         case login, logout
@@ -188,11 +210,6 @@ actor CountingClient: CPAServiceClient {
     func overview(range: UsageTimeRange) async throws -> UsageOverviewResponse {
         calls.append(.overview)
         overviewRanges.append(range)
-        return try decode("{}")
-    }
-
-    func realtime() async throws -> RealtimeOverviewResponse {
-        calls.append(.realtime)
         return try decode("{}")
     }
 

@@ -3,6 +3,12 @@ import Foundation
 public struct CPAServiceRoot: Equatable, Sendable {
     public let url: URL
 
+    public var requiresInsecureHTTPConsent: Bool {
+        guard url.scheme?.lowercased() == "http" else { return false }
+        let localHosts = ["localhost", "127.0.0.1", "::1"]
+        return !localHosts.contains(url.host?.lowercased() ?? "")
+    }
+
     public init(_ rawValue: String) throws {
         guard var components = URLComponents(string: rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
               let scheme = components.scheme?.lowercased(),

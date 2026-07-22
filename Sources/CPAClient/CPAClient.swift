@@ -2,8 +2,11 @@ import Foundation
 import CPAModels
 
 public final class CPAClient: @unchecked Sendable {
+    static let maximumResponseBytes = 8 * 1_024 * 1_024
+    static let maximumListItems = 2_000
+
     private let root: CPAServiceRoot
-    private let session: URLSession
+    private let responseLoader: CPAResponseLoader
     private let cookieStore: SessionCookieStore
     private let policy: CPARequestPolicy
 
@@ -23,7 +26,10 @@ public final class CPAClient: @unchecked Sendable {
         policy: CPARequestPolicy = CPARequestPolicy()
     ) {
         self.root = root
-        self.session = session
+        responseLoader = CPAResponseLoader(
+            session: session,
+            maximumResponseBytes: Self.maximumResponseBytes
+        )
         self.cookieStore = cookieStore
         self.policy = policy
     }
@@ -48,12 +54,17 @@ public final class CPAClient: @unchecked Sendable {
         try await fetch(.overview, usageRange: range)
     }
 
-    public func realtime() async throws -> RealtimeOverviewResponse {
-        try await fetch(.realtime)
-    }
-
     public func analysis(range: UsageTimeRange = .today) async throws -> UsageAnalysisResponse {
-        try await fetch(.analysis, usageRange: range)
+        let value: UsageAnalysisResponse = try await fetch(.analysis, usageRange: range)
+        try validateListCounts([
+            value.tokenUsage.count,
+            value.apiKeyComposition.count,
+            value.modelComposition.count,
+            value.authFilesComposition.count,
+            value.aiProviderComposition.count,
+            value.modelEfficiency.count,
+        ])
+        return value
     }
 
     public func events(
@@ -61,20 +72,26 @@ public final class CPAClient: @unchecked Sendable {
         page: Int = 1,
         pageSize: Int = 20
     ) async throws -> UsageEventsResponse {
-        try await fetch(
+        let value: UsageEventsResponse = try await fetch(
             .usageEvents,
             usageRange: range,
             page: page,
             pageSize: pageSize
         )
+        try validateListCounts([value.events.count])
+        return value
     }
 
     public func authFiles() async throws -> UsageIdentitiesPageResponse {
-        try await fetch(.authFiles)
+        let value: UsageIdentitiesPageResponse = try await fetch(.authFiles)
+        try validateListCounts([value.identities.count])
+        return value
     }
 
     public func providers() async throws -> UsageIdentitiesPageResponse {
-        try await fetch(.providers)
+        let value: UsageIdentitiesPageResponse = try await fetch(.providers)
+        try validateListCounts([value.identities.count])
+        return value
     }
 
     public func quotaCache(authIndexes: [String]) async throws -> UsageQuotaCacheResponse {
@@ -87,11 +104,9 @@ public final class CPAClient: @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("fetch", forHTTPHeaderField: "X-CPA-Usage-Keeper-Request")
         let data = try await perform(request)
-        do {
-            return try JSONDecoder().decode(UsageQuotaCacheResponse.self, from: data)
-        } catch {
-            throw CPAClientError.decoding(Self.decodingMessage(error))
-        }
+        let value = try decode(UsageQuotaCacheResponse.self, from: data)
+        try validateListCounts([value.items.count])
+        return value
     }
 
     public func refreshQuota(authIndexes: [String]) async throws -> UsageQuotaRefreshBatchResponse {
@@ -103,7 +118,9 @@ public final class CPAClient: @unchecked Sendable {
         request.httpBody = try JSONEncoder().encode(QuotaRefreshBody(authIndexes: authIndexes))
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("fetch", forHTTPHeaderField: "X-CPA-Usage-Keeper-Request")
-        return try decode(UsageQuotaRefreshBatchResponse.self, from: await perform(request))
+        let value = try decode(UsageQuotaRefreshBatchResponse.self, from: await perform(request))
+        try validateListCounts([value.tasks.count, value.rejected.count])
+        return value
     }
 
     public func quotaRefreshStatus(authIndex: String) async throws -> UsageQuotaRefreshTaskResponse {
@@ -140,11 +157,7 @@ public final class CPAClient: @unchecked Sendable {
             page: page,
             pageSize: pageSize
         ))
-        do {
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch {
-            throw CPAClientError.decoding(Self.decodingMessage(error))
-        }
+        return try decode(T.self, from: data)
     }
 
     private static func decodingMessage(_ error: Error) -> String {
@@ -177,6 +190,12 @@ public final class CPAClient: @unchecked Sendable {
     private func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
         do { return try JSONDecoder().decode(type, from: data) }
         catch { throw CPAClientError.decoding(Self.decodingMessage(error)) }
+    }
+
+    private func validateListCounts(_ counts: [Int]) throws {
+        guard counts.allSatisfy({ $0 <= Self.maximumListItems }) else {
+            throw CPAClientError.tooManyItems(limit: Self.maximumListItems)
+        }
     }
 
     private func makeRequest(
@@ -219,7 +238,7 @@ public final class CPAClient: @unchecked Sendable {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await responseLoader.load(request)
         } catch let error as CPAClientError {
             throw error
         } catch {

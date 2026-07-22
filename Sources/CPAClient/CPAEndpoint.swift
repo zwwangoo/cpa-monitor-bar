@@ -21,7 +21,6 @@ public enum CPAEndpoint: CaseIterable, Sendable {
     case status
     case version
     case overview
-    case realtime
     case analysis
     case usageEvents
     case authFiles
@@ -45,7 +44,6 @@ public enum CPAEndpoint: CaseIterable, Sendable {
         case .status: "/cpa/api/v1/status"
         case .version: "/cpa/api/v1/version"
         case .overview: "/cpa/api/v1/usage/overview"
-        case .realtime: "/cpa/api/v1/usage/overview/realtime"
         case .analysis: "/cpa/api/v1/usage/analysis"
         case .usageEvents: "/cpa/api/v1/usage/events"
         case .authFiles, .providers: "/cpa/api/v1/usage/identities/page"

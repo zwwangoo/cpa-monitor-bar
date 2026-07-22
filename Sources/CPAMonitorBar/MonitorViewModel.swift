@@ -8,11 +8,10 @@ enum ConfigurationState: Equatable, Sendable {
 }
 @MainActor
 final class MonitorViewModel: ObservableObject {
-    static let defaultBaseURL = "https://cpa.wangzhiwen.top/cpa"
     static let eventsPageSize = 20
 
-    @Published private(set) var baseURL: String
-    @Published private(set) var configurationState: ConfigurationState
+    @Published var baseURL: String
+    @Published var configurationState: ConfigurationState
     @Published var isAuthenticated = false
     @Published private(set) var isRefreshing = false
     @Published var loginError: String?
@@ -23,7 +22,6 @@ final class MonitorViewModel: ObservableObject {
     @Published private(set) var keeperStatus = SectionState<KeeperStatusResponse>()
     @Published private(set) var keeperVersion = SectionState<KeeperVersionResponse>()
     @Published private(set) var overview = SectionState<UsageOverviewResponse>()
-    @Published private(set) var realtime = SectionState<RealtimeOverviewResponse>()
     @Published private(set) var analysis = SectionState<UsageAnalysisResponse>()
     @Published var events = SectionState<UsageEventsResponse>()
     @Published var isLoadingMoreEvents = false
@@ -36,21 +34,24 @@ final class MonitorViewModel: ObservableObject {
 
     var client: (any CPAServiceClient)?
     var credentialStore: (any CredentialStore)?
-    private let baseURLStore: any BaseURLStoring
+    let baseURLStore: any BaseURLStoring
     private let preferencesStore: any MonitorPreferencesStoring
+    let insecureHTTPConsentStore: any InsecureHTTPConsentStoring
     private let launchAtLoginController: any LaunchAtLoginControlling
-    private let credentialStoreFactory: CredentialStoreFactory
-    private let clientFactory: CPAServiceClientFactory
+    let credentialStoreFactory: CredentialStoreFactory
+    let clientFactory: CPAServiceClientFactory
     let pollingIntervalOverride: Duration?
     let quotaRefreshPollingInterval: Duration
     var pollingTask: Task<Void, Never>?
     var quotaRefreshTask: Task<Void, Never>?
     var connectionGeneration = 0
-    private var started = false
+    var started = false
     var eventsPageGeneration = 0
     init(
         baseURLStore: any BaseURLStoring = UserDefaultsBaseURLStore(),
         preferencesStore: any MonitorPreferencesStoring = UserDefaultsMonitorPreferencesStore(),
+        insecureHTTPConsentStore: any InsecureHTTPConsentStoring =
+            UserDefaultsInsecureHTTPConsentStore(),
         launchAtLoginController: (any LaunchAtLoginControlling)? = nil,
         credentialStoreFactory: @escaping CredentialStoreFactory = { root in
             KeychainCredentialStore(account: credentialAccount(for: root))
@@ -65,6 +66,7 @@ final class MonitorViewModel: ObservableObject {
         let launchController = launchAtLoginController ?? LaunchAtLoginController()
         self.baseURLStore = baseURLStore
         self.preferencesStore = preferencesStore
+        self.insecureHTTPConsentStore = insecureHTTPConsentStore
         self.launchAtLoginController = launchController
         self.credentialStoreFactory = credentialStoreFactory
         self.clientFactory = clientFactory
@@ -75,9 +77,14 @@ final class MonitorViewModel: ObservableObject {
         launchAtLoginEnabled = launchController.isEnabled
         if let saved = baseURLStore.loadBaseURL(), let root = try? CPAServiceRoot(saved) {
             baseURL = root.url.absoluteString
-            configurationState = .configured
-            client = clientFactory(root)
-            credentialStore = credentialStoreFactory(root)
+            if root.requiresInsecureHTTPConsent
+                && !insecureHTTPConsentStore.contains(root.url.absoluteString) {
+                configurationState = .unconfigured
+            } else {
+                configurationState = .configured
+                client = clientFactory(root)
+                credentialStore = credentialStoreFactory(root)
+            }
         } else {
             baseURL = ""
             configurationState = .unconfigured
@@ -97,20 +104,6 @@ final class MonitorViewModel: ObservableObject {
         await loginWithSavedPassword()
     }
 
-    func updateBaseURL(_ value: String) async throws {
-        let root = try CPAServiceRoot(value)
-        pollingTask?.cancel()
-        connectionGeneration += 1
-        resetConnectionState()
-        client = clientFactory(root)
-        credentialStore = credentialStoreFactory(root)
-        baseURL = root.url.absoluteString
-        configurationState = .configured
-        baseURLStore.saveBaseURL(baseURL)
-        started = true
-        startPolling()
-        await refresh()
-    }
     func refresh() async {
         guard let activeClient = client, !isRefreshing else { return }
         let generation = connectionGeneration
@@ -148,7 +141,6 @@ final class MonitorViewModel: ObservableObject {
         keeperStatus.isLoading = true
         keeperVersion.isLoading = true
         overview.isLoading = true
-        realtime.isLoading = true
         analysis.isLoading = true
         events.isLoading = true
         authFiles.isLoading = true
@@ -161,7 +153,6 @@ final class MonitorViewModel: ObservableObject {
         async let version = capture { try await activeClient.version() }
         let range = usageRange
         async let overview = capture { try await activeClient.overview(range: range) }
-        async let realtime = capture { try await activeClient.realtime() }
         async let analysis = capture { try await activeClient.analysis(range: range) }
         async let events = capture {
             try await activeClient.events(
@@ -172,17 +163,16 @@ final class MonitorViewModel: ObservableObject {
         }
         async let authFiles = capture { try await activeClient.authFiles() }
         async let providers = capture { try await activeClient.providers() }
-        let results = await (status, version, overview, realtime, analysis, events, authFiles, providers)
+        let results = await (status, version, overview, analysis, events, authFiles, providers)
         guard isCurrent(generation) else { return }
         apply(results.0, to: &keeperStatus)
         apply(results.1, to: &keeperVersion)
         apply(results.2, to: &self.overview)
-        apply(results.3, to: &self.realtime)
-        apply(results.4, to: &self.analysis)
-        apply(results.5, to: &self.events)
-        apply(results.6, to: &self.authFiles)
-        apply(results.7, to: &self.providers)
-        await refreshQuotaCache(using: activeClient, authFiles: results.6, generation: generation)
+        apply(results.3, to: &self.analysis)
+        apply(results.4, to: &self.events)
+        apply(results.5, to: &self.authFiles)
+        apply(results.6, to: &self.providers)
+        await refreshQuotaCache(using: activeClient, authFiles: results.5, generation: generation)
         isRefreshing = false
     }
 
@@ -250,7 +240,7 @@ final class MonitorViewModel: ObservableObject {
         }
     }
 
-    private func resetConnectionState() {
+    func resetConnectionState() {
         quotaRefreshTask?.cancel()
         quotaRefreshTask = nil
         isAuthenticated = false
@@ -262,7 +252,6 @@ final class MonitorViewModel: ObservableObject {
         keeperStatus = SectionState()
         keeperVersion = SectionState()
         overview = SectionState()
-        realtime = SectionState()
         analysis = SectionState()
         events = SectionState()
         authFiles = SectionState()
@@ -284,7 +273,6 @@ final class MonitorViewModel: ObservableObject {
         keeperStatus.isLoading = false
         keeperVersion.isLoading = false
         overview.isLoading = false
-        realtime.isLoading = false
         analysis.isLoading = false
         events.isLoading = false
         authFiles.isLoading = false

@@ -1,6 +1,24 @@
 import Foundation
 import CPAModels
 
+func compactInteger(_ value: Int?) -> String {
+    value?.formatted(.number.notation(.compactName)) ?? "—"
+}
+
+func formattedInteger(_ value: Int?) -> String {
+    value?.formatted() ?? "—"
+}
+
+func formattedPercent(_ value: Double?, fractionDigits: Int = 1) -> String {
+    guard let value, value.isFinite else { return "—" }
+    return String(format: "%.\(max(fractionDigits, 0))f%%", value)
+}
+
+func formattedCurrency(_ value: Double?) -> String {
+    guard let value, value.isFinite else { return "—" }
+    return value >= 1 ? String(format: "$%.2f", value) : String(format: "$%.4f", value)
+}
+
 func quotaRemainingPercent(_ row: UsageQuotaRow) -> Double? {
     let value: Double?
     if let fraction = row.remainingFraction {
@@ -30,8 +48,12 @@ func dashboardShortTime(_ rawValue: String?) -> String {
 
 func compactLatency(_ milliseconds: Int?) -> String {
     guard let milliseconds else { return "—" }
-    guard abs(milliseconds) >= 1_000 else { return "\(milliseconds)ms" }
+    guard milliseconds.magnitude >= 1_000 else { return "\(milliseconds)ms" }
     return String(format: "%.1fs", Double(milliseconds) / 1_000)
+}
+
+func credentialRequestCount(success: Int?, failure: Int?) -> Double {
+    max(Double(success ?? 0), 0) + max(Double(failure ?? 0), 0)
 }
 
 func eventLatencyText(ttftMS: Int?, latencyMS: Int?) -> String {

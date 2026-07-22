@@ -25,13 +25,40 @@ final class UserDefaultsBaseURLStore: BaseURLStoring {
     }
 }
 
+protocol InsecureHTTPConsentStoring: AnyObject {
+    func contains(_ normalizedURL: String) -> Bool
+    func record(_ normalizedURL: String)
+}
+
+final class UserDefaultsInsecureHTTPConsentStore: InsecureHTTPConsentStoring {
+    private let defaults: UserDefaults
+    private let key: String
+
+    init(
+        defaults: UserDefaults = .standard,
+        key: String = "approvedInsecureHTTPKeeperURLs"
+    ) {
+        self.defaults = defaults
+        self.key = key
+    }
+
+    func contains(_ normalizedURL: String) -> Bool {
+        Set(defaults.stringArray(forKey: key) ?? []).contains(normalizedURL)
+    }
+
+    func record(_ normalizedURL: String) {
+        var values = Set(defaults.stringArray(forKey: key) ?? [])
+        values.insert(normalizedURL)
+        defaults.set(values.sorted(), forKey: key)
+    }
+}
+
 protocol CPAServiceClient: Sendable {
     func health() async throws -> HealthResponse
     func session() async throws -> AuthSessionResponse
     func status() async throws -> KeeperStatusResponse
     func version() async throws -> KeeperVersionResponse
     func overview(range: UsageTimeRange) async throws -> UsageOverviewResponse
-    func realtime() async throws -> RealtimeOverviewResponse
     func analysis(range: UsageTimeRange) async throws -> UsageAnalysisResponse
     func events(
         range: UsageTimeRange,

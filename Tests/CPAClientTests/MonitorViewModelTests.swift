@@ -75,7 +75,6 @@ final class MonitorViewModelTests: XCTestCase {
         XCTAssertNil(model.keeperStatus.value)
         XCTAssertNil(model.keeperStatus.errorMessage)
         XCTAssertNil(model.overview.value)
-        XCTAssertNil(model.realtime.value)
         XCTAssertNil(model.analysis.value)
         XCTAssertEqual(newCalls, [.health, .session])
     }
