@@ -7,6 +7,23 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 - 架构：Apple Silicon（arm64）与 Intel（x86_64）Universal 2
 - 技术栈：Swift、SwiftUI、Swift Package Manager
 
+## 界面预览
+
+点击截图可查看原图。
+
+<table>
+  <tr>
+    <th>概览</th>
+    <th>请求事件</th>
+    <th>认证文件</th>
+  </tr>
+  <tr>
+    <td><a href="Assets/Screenshots/overview.png"><img src="Assets/Screenshots/overview.png" alt="CPA Monitor Bar 概览页面" width="280"></a></td>
+    <td><a href="Assets/Screenshots/request-events.png"><img src="Assets/Screenshots/request-events.png" alt="CPA Monitor Bar 请求事件页面" width="280"></a></td>
+    <td><a href="Assets/Screenshots/credentials.png"><img src="Assets/Screenshots/credentials.png" alt="CPA Monitor Bar 认证文件页面" width="280"></a></td>
+  </tr>
+</table>
+
 ## 与 cpa-usage-keeper 的关系
 
 本项目是 `cpa-usage-keeper` 的配套客户端，不替代 Keeper 服务或 Web 管理界面，也不是通用 CPA 管理工具。应用连接用户配置的 Keeper 根 URL，使用 Keeper 已有的管理会话和只读用量接口获取数据；底部会显示 Keeper 版本，并可直接在浏览器中打开对应 Web 页面。
