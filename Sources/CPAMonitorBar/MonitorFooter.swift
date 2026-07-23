@@ -34,7 +34,7 @@ struct MonitorFooter: View {
 
     private var actionRow: some View {
         HStack(spacing: 6) {
-            SettingsLink {
+            ForegroundSettingsLink {
                 FooterActionLabel(title: "设置", symbol: "gearshape")
             }
             .buttonStyle(.plain)

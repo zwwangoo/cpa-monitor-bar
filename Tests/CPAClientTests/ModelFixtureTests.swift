@@ -33,6 +33,45 @@ final class ModelFixtureTests: XCTestCase {
         XCTAssertEqual(overview.summary?.totalCost, 1.25)
         XCTAssertEqual(overview.summary?.costAvailable, true)
         XCTAssertEqual(overview.serviceHealth?.successRate, 97.5)
+        XCTAssertEqual(overview.successRate, 97.5)
+    }
+
+    func testOverviewDerivesSuccessRateWhenKeeperOmitsServiceHealth() throws {
+        let payload = Data(#"""
+        {
+          "usage": {
+            "total_requests": 145,
+            "success_count": 142,
+            "failure_count": 3,
+            "total_tokens": 14765711
+          },
+          "summary": {"request_count": 145},
+          "timezone": "Asia/Shanghai"
+        }
+        """#.utf8)
+
+        let overview = try JSONDecoder().decode(
+            UsageOverviewResponse.self,
+            from: payload
+        )
+
+        XCTAssertNil(overview.serviceHealth)
+        XCTAssertEqual(
+            try XCTUnwrap(overview.successRate),
+            142.0 / 145.0 * 100,
+            accuracy: 0.0001
+        )
+    }
+
+    func testOverviewKeepsSuccessRateUnavailableWhenThereAreNoRequests() throws {
+        let payload = Data(#"{"usage":{"total_requests":0,"success_count":0,"failure_count":0}}"#.utf8)
+
+        let overview = try JSONDecoder().decode(
+            UsageOverviewResponse.self,
+            from: payload
+        )
+
+        XCTAssertNil(overview.successRate)
     }
 
     func testAnalysisCompositionDecode() throws {

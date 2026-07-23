@@ -145,4 +145,14 @@ public struct UsageOverviewResponse: Codable, Equatable, Sendable {
         case serviceHealth = "service_health"
         case rangeStart = "range_start", rangeEnd = "range_end"
     }
+
+    public var successRate: Double? {
+        if let successRate = serviceHealth?.successRate { return successRate }
+        guard let usage,
+              let successCount = usage.successCount,
+              let totalRequests = usage.totalRequests,
+              totalRequests > 0 else { return nil }
+        let percent = Double(successCount) / Double(totalRequests) * 100
+        return min(max(percent, 0), 100)
+    }
 }

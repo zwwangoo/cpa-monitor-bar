@@ -111,7 +111,7 @@ struct MonitorPanelContent: View {
             Text("请先设置 CPA 服务根 URL，配置完成后应用会检查连接与登录状态。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            SettingsLink {
+            ForegroundSettingsLink {
                 Text("打开设置…")
             }
         }
@@ -172,7 +172,7 @@ struct MonitorPanelContent: View {
                 HStack(spacing: 8) {
                     MetricCard(title: "请求", value: compactInteger(model.overview.value?.usage?.totalRequests))
                     MetricCard(title: "Tokens", value: compactInteger(model.overview.value?.usage?.totalTokens))
-                    MetricCard(title: "成功率", value: formattedPercent(model.overview.value?.serviceHealth?.successRate))
+                    MetricCard(title: "成功率", value: formattedPercent(model.overview.value?.successRate))
                     MetricCard(title: "总成本", value: formattedCurrency(model.overview.value?.summary?.totalCost))
                 }
                 SectionFeedback(state: model.overview)

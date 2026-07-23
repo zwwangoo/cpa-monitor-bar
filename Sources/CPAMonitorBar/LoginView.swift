@@ -13,7 +13,7 @@ struct LoginView: View {
             if let error {
                 ErrorBanner(message: error, stale: false)
             }
-            SettingsLink {
+            ForegroundSettingsLink {
                 Text("打开设置…")
             }
         }
