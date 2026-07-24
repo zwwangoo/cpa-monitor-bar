@@ -73,6 +73,7 @@ public struct UsageSummary: Codable, Equatable, Sendable {
 }
 
 public struct UsageSeries: Codable, Equatable, Sendable {
+    public let buckets: [String]?
     public let requests: [String: Double]?
     public let tokens: [String: Double]?
     public let rpm: [String: Double]?
@@ -81,8 +82,57 @@ public struct UsageSeries: Codable, Equatable, Sendable {
     public let cacheReadRate: [String: Double?]?
 
     enum CodingKeys: String, CodingKey {
-        case requests, tokens, rpm, tpm, cost
+        case buckets, requests, tokens, rpm, tpm, cost
         case cacheReadRate = "cache_read_rate"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        buckets = try? values.decodeIfPresent([String].self, forKey: .buckets)
+        requests = Self.decodeSeries(.requests, from: values, buckets: buckets)
+        tokens = Self.decodeSeries(.tokens, from: values, buckets: buckets)
+        rpm = Self.decodeSeries(.rpm, from: values, buckets: buckets)
+        tpm = Self.decodeSeries(.tpm, from: values, buckets: buckets)
+        cost = Self.decodeSeries(.cost, from: values, buckets: buckets)
+        cacheReadRate = Self.decodeNullableSeries(
+            .cacheReadRate,
+            from: values,
+            buckets: buckets
+        )
+    }
+
+    private static func decodeSeries(
+        _ key: CodingKeys,
+        from values: KeyedDecodingContainer<CodingKeys>,
+        buckets: [String]?
+    ) -> [String: Double]? {
+        if let dictionary = try? values.decode([String: Double].self, forKey: key) {
+            return dictionary
+        }
+        guard let buckets,
+              let array = try? values.decode([Double?].self, forKey: key) else { return nil }
+        var result: [String: Double] = [:]
+        for (bucket, value) in zip(buckets, array) where value?.isFinite == true {
+            result[bucket] = value
+        }
+        return result
+    }
+
+    private static func decodeNullableSeries(
+        _ key: CodingKeys,
+        from values: KeyedDecodingContainer<CodingKeys>,
+        buckets: [String]?
+    ) -> [String: Double?]? {
+        if let dictionary = try? values.decode([String: Double?].self, forKey: key) {
+            return dictionary
+        }
+        guard let buckets,
+              let array = try? values.decode([Double?].self, forKey: key) else { return nil }
+        var result: [String: Double?] = [:]
+        for (bucket, value) in zip(buckets, array) {
+            result[bucket] = .some(value?.isFinite == true ? value : nil)
+        }
+        return result
     }
 }
 

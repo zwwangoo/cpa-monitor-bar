@@ -1,6 +1,11 @@
 import SwiftUI
 import CPAModels
 
+private let criticalSuccessRateThreshold = 50.0
+private let criticalConsecutiveFailureCount = 3
+private let minimumTrendBarHeight: CGFloat = 4
+private let maximumTrendBarHeight: CGFloat = 24
+
 struct CredentialHealthTrend: View {
     let health: UsageCredentialHealth?
 
@@ -15,15 +20,15 @@ struct CredentialHealthTrend: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 HStack(alignment: .bottom, spacing: 2) {
-                    ForEach(Array(health.buckets.enumerated()), id: \.offset) { _, bucket in
+                    ForEach(Array(health.buckets.enumerated()), id: \.offset) { index, bucket in
                         RoundedRectangle(cornerRadius: 1.5)
-                            .fill(color(for: bucket))
+                            .fill(color(for: credentialHealthTone(for: index, in: health)))
                             .frame(maxWidth: .infinity)
                             .frame(height: barHeight(bucket, in: health.buckets))
                             .help(bucketHelp(bucket))
                     }
                 }
-                .frame(height: 36, alignment: .bottom)
+                .frame(height: maximumTrendBarHeight, alignment: .bottom)
                 Text("5 小时前")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -37,12 +42,13 @@ struct CredentialHealthTrend: View {
         }
     }
 
-    private func color(for bucket: UsageCredentialHealthBucket) -> Color {
-        let total = credentialRequestCount(success: bucket.success, failure: bucket.failure)
-        guard total > 0 else { return .secondary.opacity(0.25) }
-        if bucket.failure == 0 { return .green }
-        if (bucket.rate ?? 0) >= 80 { return .orange }
-        return .red
+    private func color(for tone: CredentialHealthTone) -> Color {
+        switch tone {
+        case .idle: .secondary.opacity(0.18)
+        case .normal: .primary.opacity(0.72)
+        case .warning: .yellow
+        case .critical: .red
+        }
     }
 
     private func barHeight(
@@ -53,12 +59,75 @@ struct CredentialHealthTrend: View {
         let maximum = buckets.map {
             credentialRequestCount(success: $0.success, failure: $0.failure)
         }.max() ?? 0
-        guard maximum > 0 else { return 4 }
-        return max(4, 36 * count / maximum)
+        return credentialHealthBarHeight(
+            requestCount: count,
+            maximumRequestCount: maximum
+        )
     }
 
     private func bucketHelp(_ bucket: UsageCredentialHealthBucket) -> String {
         "\(dashboardShortTime(bucket.startTime))–\(dashboardShortTime(bucket.endTime)) · "
             + "成功 \(bucket.success ?? 0) / 失败 \(bucket.failure ?? 0)"
     }
+}
+
+enum CredentialHealthTone: Equatable {
+    case idle
+    case normal
+    case warning
+    case critical
+}
+
+func credentialHealthTone(
+    for index: Int,
+    in health: UsageCredentialHealth
+) -> CredentialHealthTone {
+    guard health.buckets.indices.contains(index) else { return .idle }
+    let bucket = health.buckets[index]
+    let requestCount = credentialRequestCount(success: bucket.success, failure: bucket.failure)
+    guard requestCount > 0 else { return .idle }
+    guard max(bucket.failure ?? 0, 0) > 0 else { return .normal }
+
+    if credentialOverallSuccessRate(health).map({ $0 < criticalSuccessRateThreshold }) == true {
+        return .critical
+    }
+    if consecutiveCompleteFailures(through: index, in: health.buckets)
+        >= criticalConsecutiveFailureCount {
+        return .critical
+    }
+    return .warning
+}
+
+func credentialHealthBarHeight(
+    requestCount: Double,
+    maximumRequestCount: Double
+) -> CGFloat {
+    guard requestCount > 0, maximumRequestCount > 0 else { return minimumTrendBarHeight }
+    let ratio = min(max(requestCount / maximumRequestCount, 0), 1)
+    return max(minimumTrendBarHeight, maximumTrendBarHeight * ratio)
+}
+
+private func credentialOverallSuccessRate(_ health: UsageCredentialHealth) -> Double? {
+    if let rate = health.successRate { return min(max(rate, 0), 100) }
+    let total = credentialRequestCount(
+        success: health.totalSuccess,
+        failure: health.totalFailure
+    )
+    guard total > 0 else { return nil }
+    return max(Double(health.totalSuccess ?? 0), 0) / total * 100
+}
+
+private func consecutiveCompleteFailures(
+    through index: Int,
+    in buckets: [UsageCredentialHealthBucket]
+) -> Int {
+    guard buckets.indices.contains(index) else { return 0 }
+    var count = 0
+    for bucket in buckets[...index].reversed() {
+        let success = max(bucket.success ?? 0, 0)
+        let failure = max(bucket.failure ?? 0, 0)
+        guard success == 0, failure > 0 else { break }
+        count += 1
+    }
+    return count
 }
