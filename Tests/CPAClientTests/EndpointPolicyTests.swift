@@ -24,6 +24,10 @@ final class EndpointPolicyTests: XCTestCase {
             "https://example.com/cpa/api/v1/usage/analysis?range=today"
         )
         XCTAssertEqual(
+            try root.url(for: .activity).absoluteString,
+            "https://example.com/cpa/api/v1/usage/activity?window=day"
+        )
+        XCTAssertEqual(
             try root.url(for: .usageEvents).absoluteString,
             "https://example.com/cpa/api/v1/usage/events?range=today&page=1&page_size=20"
         )
@@ -59,6 +63,10 @@ final class EndpointPolicyTests: XCTestCase {
         XCTAssertEqual(
             try root.url(for: .analysis, usageRange: .today).query,
             "range=today"
+        )
+        XCTAssertEqual(
+            try root.url(for: .activity, usageRange: .last8Hours).query,
+            "window=day"
         )
         XCTAssertEqual(
             try root.url(for: .usageEvents, usageRange: .yesterday).query,
@@ -116,7 +124,7 @@ final class EndpointPolicyTests: XCTestCase {
     func testEndpointMethodsAreFixed() {
         let gets: [CPAEndpoint] = [
             .health, .session, .status, .version, .overview, .analysis,
-            .usageEvents, .authFiles, .providers,
+            .activity, .usageEvents, .authFiles, .providers,
         ]
         for endpoint in gets {
             XCTAssertEqual(endpoint.method, .get)

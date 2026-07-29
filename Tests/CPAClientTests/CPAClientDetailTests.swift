@@ -100,6 +100,9 @@ final class CPAClientDetailTests: XCTestCase {
             case "/cpa/api/v1/usage/analysis":
                 XCTAssertEqual(query, "range=yesterday")
                 return Self.response(for: request, body: "{}")
+            case "/cpa/api/v1/usage/activity":
+                XCTAssertEqual(query, "window=day")
+                return Self.response(for: request, body: "{}")
             case "/cpa/api/v1/usage/events":
                 XCTAssertEqual(query, "range=yesterday&page=1&page_size=20")
                 return Self.response(for: request, body: #"{"events":[]}"#)
@@ -111,6 +114,7 @@ final class CPAClientDetailTests: XCTestCase {
 
         _ = try await client.overview(range: .last8Hours)
         _ = try await client.analysis(range: .yesterday)
+        _ = try await client.activity()
         _ = try await client.events(range: .yesterday)
     }
 

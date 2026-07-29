@@ -60,6 +60,7 @@ protocol CPAServiceClient: Sendable {
     func version() async throws -> KeeperVersionResponse
     func overview(range: UsageTimeRange) async throws -> UsageOverviewResponse
     func analysis(range: UsageTimeRange) async throws -> UsageAnalysisResponse
+    func activity() async throws -> UsageActivityResponse
     func events(
         range: UsageTimeRange,
         page: Int,

@@ -38,7 +38,7 @@ struct TokenShareSection: View {
     @State private var dimension = TokenShareDimension.models
 
     var body: some View {
-        GroupBox("Token 占比") {
+        DashboardSectionCard(section: .tokenShare) {
             VStack(alignment: .leading, spacing: 10) {
                 dimensionPicker
 
@@ -63,7 +63,6 @@ struct TokenShareSection: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .accessibilityIdentifier("monitor.overview.token-share")
     }
 
     private var dimensionPicker: some View {

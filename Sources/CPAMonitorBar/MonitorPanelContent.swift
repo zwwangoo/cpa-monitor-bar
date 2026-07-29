@@ -160,14 +160,15 @@ struct MonitorPanelContent: View {
     }
 
     private var overviewDashboard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             summarySection
+            RequestHealthTimelineSection(state: model.activity)
             TokenShareSection(analysis: model.analysis.value)
         }
     }
 
     private var summarySection: some View {
-        GroupBox("使用概览") {
+        DashboardSectionCard(section: .overview) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     MetricCard(title: "请求", value: compactInteger(model.overview.value?.usage?.totalRequests))

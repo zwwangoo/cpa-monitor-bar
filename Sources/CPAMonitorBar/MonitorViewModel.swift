@@ -23,6 +23,7 @@ final class MonitorViewModel: ObservableObject {
     @Published private(set) var keeperVersion = SectionState<KeeperVersionResponse>()
     @Published private(set) var overview = SectionState<UsageOverviewResponse>()
     @Published private(set) var analysis = SectionState<UsageAnalysisResponse>()
+    @Published private(set) var activity = SectionState<UsageActivityResponse>()
     @Published var events = SectionState<UsageEventsResponse>()
     @Published var isLoadingMoreEvents = false
     @Published var eventsLoadMoreError: String?
@@ -142,6 +143,7 @@ final class MonitorViewModel: ObservableObject {
         keeperVersion.isLoading = true
         overview.isLoading = true
         analysis.isLoading = true
+        activity.isLoading = true
         events.isLoading = true
         authFiles.isLoading = true
         providers.isLoading = true
@@ -154,6 +156,7 @@ final class MonitorViewModel: ObservableObject {
         let range = usageRange
         async let overview = capture { try await activeClient.overview(range: range) }
         async let analysis = capture { try await activeClient.analysis(range: range) }
+        async let activity = capture { try await activeClient.activity() }
         async let events = capture {
             try await activeClient.events(
                 range: range,
@@ -163,16 +166,17 @@ final class MonitorViewModel: ObservableObject {
         }
         async let authFiles = capture { try await activeClient.authFiles() }
         async let providers = capture { try await activeClient.providers() }
-        let results = await (status, version, overview, analysis, events, authFiles, providers)
+        let results = await (status, version, overview, analysis, activity, events, authFiles, providers)
         guard isCurrent(generation) else { return }
         apply(results.0, to: &keeperStatus)
         apply(results.1, to: &keeperVersion)
         apply(results.2, to: &self.overview)
         apply(results.3, to: &self.analysis)
-        apply(results.4, to: &self.events)
-        apply(results.5, to: &self.authFiles)
-        apply(results.6, to: &self.providers)
-        await refreshQuotaCache(using: activeClient, authFiles: results.5, generation: generation)
+        apply(results.4, to: &self.activity)
+        apply(results.5, to: &self.events)
+        apply(results.6, to: &self.authFiles)
+        apply(results.7, to: &self.providers)
+        await refreshQuotaCache(using: activeClient, authFiles: results.6, generation: generation)
         isRefreshing = false
     }
 
@@ -253,6 +257,7 @@ final class MonitorViewModel: ObservableObject {
         keeperVersion = SectionState()
         overview = SectionState()
         analysis = SectionState()
+        activity = SectionState()
         events = SectionState()
         authFiles = SectionState()
         providers = SectionState()
@@ -274,6 +279,7 @@ final class MonitorViewModel: ObservableObject {
         keeperVersion.isLoading = false
         overview.isLoading = false
         analysis.isLoading = false
+        activity.isLoading = false
         events.isLoading = false
         authFiles.isLoading = false
         providers.isLoading = false

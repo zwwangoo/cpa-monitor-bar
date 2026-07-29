@@ -22,6 +22,7 @@ public enum CPAEndpoint: CaseIterable, Sendable {
     case version
     case overview
     case analysis
+    case activity
     case usageEvents
     case authFiles
     case providers
@@ -45,6 +46,7 @@ public enum CPAEndpoint: CaseIterable, Sendable {
         case .version: "/cpa/api/v1/version"
         case .overview: "/cpa/api/v1/usage/overview"
         case .analysis: "/cpa/api/v1/usage/analysis"
+        case .activity: "/cpa/api/v1/usage/activity"
         case .usageEvents: "/cpa/api/v1/usage/events"
         case .authFiles, .providers: "/cpa/api/v1/usage/identities/page"
         case .quotaCache: "/cpa/api/v1/quota/cache"
@@ -60,6 +62,8 @@ public enum CPAEndpoint: CaseIterable, Sendable {
         switch self {
         case .overview, .analysis:
             [URLQueryItem(name: "range", value: usageRange.rawValue)]
+        case .activity:
+            [URLQueryItem(name: "window", value: "day")]
         case .usageEvents:
             [
                 URLQueryItem(name: "range", value: usageRange.rawValue),

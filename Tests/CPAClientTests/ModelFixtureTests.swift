@@ -83,6 +83,20 @@ final class ModelFixtureTests: XCTestCase {
         XCTAssertEqual(analysis.tokenUsage.first?.costUSD, 1.25)
     }
 
+    func testDecodesUsageActivityTimeline() throws {
+        let activity: UsageActivityResponse = try fixture("activity")
+
+        XCTAssertEqual(activity.rows, 7)
+        XCTAssertEqual(activity.columns, 52)
+        XCTAssertEqual(activity.totalSuccess, 42)
+        XCTAssertEqual(activity.totalFailure, 2)
+        XCTAssertEqual(activity.successRate, 95.4545)
+        XCTAssertEqual(activity.blocks.count, 2)
+        XCTAssertEqual(activity.blocks.first?.success, 9)
+        XCTAssertEqual(activity.blocks.first?.failure, 1)
+        XCTAssertEqual(activity.blocks.first?.rate, 0.9)
+    }
+
     func testFixtureRoundTrip() throws {
         let source: UsageAnalysisResponse = try fixture("analysis")
         let encoded = try JSONEncoder().encode(source)

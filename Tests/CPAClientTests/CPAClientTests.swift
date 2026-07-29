@@ -17,6 +17,7 @@ final class CPAClientTests: XCTestCase {
             "/cpa/api/v1/version": #"{"version":"v1.13.5"}"#,
             "/cpa/api/v1/usage/overview": try fixtureBody("overview"),
             "/cpa/api/v1/usage/analysis": try fixtureBody("analysis"),
+            "/cpa/api/v1/usage/activity": try fixtureBody("activity"),
         ]
         StubURLProtocol.handler = { request in
             XCTAssertEqual(request.httpMethod, "GET")
@@ -27,6 +28,8 @@ final class CPAClientTests: XCTestCase {
             if path == "/cpa/api/v1/usage/overview"
                 || path == "/cpa/api/v1/usage/analysis" {
                 XCTAssertEqual(components.percentEncodedQuery, "range=today")
+            } else if path == "/cpa/api/v1/usage/activity" {
+                XCTAssertEqual(components.percentEncodedQuery, "window=day")
             } else {
                 XCTAssertNil(components.percentEncodedQuery)
             }
@@ -41,6 +44,7 @@ final class CPAClientTests: XCTestCase {
         _ = try await client.version()
         _ = try await client.overview()
         _ = try await client.analysis()
+        _ = try await client.activity()
     }
 
     func testLoginBodyIsOnlyPasswordAndAccepts204() async throws {

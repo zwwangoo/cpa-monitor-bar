@@ -119,7 +119,10 @@ final class MonitorViewModelSettingsTests: XCTestCase {
         )
         XCTAssertEqual(dependencies.launchAtLoginController.requestedValues, [true])
         let ranges = await client.lastUsageRanges()
-        XCTAssertEqual(ranges.compactMap { $0 }, [.yesterday, .yesterday, .yesterday])
+        XCTAssertEqual(
+            ranges.compactMap { $0 },
+            [.yesterday, .yesterday, .yesterday]
+        )
     }
 
     func testApplySettingsKeepsLoginErrorWhenAuthenticationFails() async {

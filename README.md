@@ -2,7 +2,7 @@
 
 CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控客户端。它把日常需要关注的使用概览、请求事件、认证文件限额和供应商健康情况压缩到一个轻量 Bar 窗口中，同时保留快速跳转到 Keeper Web 管理界面的入口。
 
-- 当前版本：`1.1.2`
+- 当前版本：`1.1.3`
 - 系统要求：macOS 26.5 及以上
 - 架构：Apple Silicon（arm64）与 Intel（x86_64）Universal 2
 - 技术栈：Swift、SwiftUI、Swift Package Manager
@@ -42,7 +42,7 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 
 登录后提供四个页签：
 
-- **概览**：请求数、Token、成功率和总成本，以及按模型、API Key、认证文件和 AI 提供商切换的 Token 占比。
+- **概览**：请求数、Token、成功率和总成本，固定 24 小时请求健康热力图，以及按模型、API Key、认证文件和 AI 提供商切换的 Token 占比。
 - **请求事件**：展示所选时间范围的请求总数、结果、时间、Key、凭证、模型、SSE / WS 类型和首字 / 总耗时；滚动到底部自动加载后续分页。
 - **认证文件**：按类型筛选启用中的认证账号，展示 Keeper 已缓存的限额和重置时间，不显示完整文件名或已停用凭证。
 - **供应商**：展示供应商名称和最近 5 小时健康趋势。

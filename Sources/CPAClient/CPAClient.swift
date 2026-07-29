@@ -67,6 +67,12 @@ public final class CPAClient: @unchecked Sendable {
         return value
     }
 
+    public func activity() async throws -> UsageActivityResponse {
+        let value: UsageActivityResponse = try await fetch(.activity)
+        try validateListCounts([value.blocks.count])
+        return value
+    }
+
     public func events(
         range: UsageTimeRange = .today,
         page: Int = 1,

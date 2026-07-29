@@ -139,7 +139,7 @@ final class RecordingCredentialStore: CredentialStore, @unchecked Sendable {
 
 actor CountingClient: CPAServiceClient {
     enum Call: Equatable {
-        case health, session, status, version, overview, analysis
+        case health, session, status, version, overview, analysis, activity
         case events, authFiles, providers, quotaCache([String])
         case refreshQuota([String]), quotaRefreshStatus(String)
         case login, logout
@@ -216,6 +216,10 @@ actor CountingClient: CPAServiceClient {
     func analysis(range: UsageTimeRange) async throws -> UsageAnalysisResponse {
         calls.append(.analysis)
         analysisRanges.append(range)
+        return try decode("{}")
+    }
+    func activity() async throws -> UsageActivityResponse {
+        calls.append(.activity)
         return try decode("{}")
     }
 

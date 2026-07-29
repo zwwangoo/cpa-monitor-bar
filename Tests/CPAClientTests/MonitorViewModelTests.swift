@@ -76,6 +76,7 @@ final class MonitorViewModelTests: XCTestCase {
         XCTAssertNil(model.keeperStatus.errorMessage)
         XCTAssertNil(model.overview.value)
         XCTAssertNil(model.analysis.value)
+        XCTAssertNil(model.activity.value)
         XCTAssertEqual(newCalls, [.health, .session])
     }
 
@@ -196,11 +197,13 @@ final class MonitorViewModelTests: XCTestCase {
         let calls = await client.calls
 
         XCTAssertEqual(model.events.value?.events.count, 0)
+        XCTAssertEqual(model.activity.value?.blocks.count, 0)
         XCTAssertEqual(model.keeperVersion.value?.version, "v1.13.5")
         XCTAssertEqual(model.authFiles.value?.identities.first?.identity, "auth-1")
         XCTAssertEqual(model.providers.value?.identities.count, 0)
         XCTAssertEqual(model.quotaCache.value?.items.count, 0)
         XCTAssertTrue(calls.contains(.events))
+        XCTAssertTrue(calls.contains(.activity))
         XCTAssertTrue(calls.contains(.version))
         XCTAssertTrue(calls.contains(.authFiles))
         XCTAssertTrue(calls.contains(.providers))
