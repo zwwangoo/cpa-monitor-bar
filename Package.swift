@@ -5,8 +5,6 @@ let package = Package(
     name: "CPAMonitorBar",
     platforms: [.macOS("26.5")],
     products: [
-        .library(name: "CPAModels", targets: ["CPAModels"]),
-        .library(name: "CPAClient", targets: ["CPAClient"]),
         .executable(name: "CPAMonitorBar", targets: ["CPAMonitorBar"]),
     ],
     targets: [

@@ -18,6 +18,7 @@ final class MonitorViewModel: ObservableObject {
     @Published private(set) var usageRange: UsageTimeRange
     @Published private(set) var refreshFrequency: RefreshFrequency
     @Published private(set) var launchAtLoginEnabled: Bool
+    @Published private(set) var lastUpdatedAt: Date?
     @Published private(set) var health = SectionState<HealthResponse>()
     @Published private(set) var keeperStatus = SectionState<KeeperStatusResponse>()
     @Published private(set) var keeperVersion = SectionState<KeeperVersionResponse>()
@@ -58,7 +59,7 @@ final class MonitorViewModel: ObservableObject {
             KeychainCredentialStore(account: credentialAccount(for: root))
         },
         clientFactory: @escaping CPAServiceClientFactory = { root in
-            try! CPAClient(baseURL: root.url.absoluteString)
+            CPAClient(root: root)
         },
         pollingInterval: Duration? = nil,
         quotaRefreshPollingInterval: Duration = .seconds(5)
@@ -234,7 +235,7 @@ final class MonitorViewModel: ObservableObject {
         case let .success(value):
             state.value = value
             state.errorMessage = nil
-            state.updatedAt = .now
+            markUpdated()
         case let .failure(error):
             state.errorMessage = error.localizedDescription
             if error == .authenticationRequired {
@@ -245,12 +246,8 @@ final class MonitorViewModel: ObservableObject {
     }
 
     func resetConnectionState() {
-        quotaRefreshTask?.cancel()
-        quotaRefreshTask = nil
+        _ = beginConnectionStateChange()
         isAuthenticated = false
-        isRefreshing = false
-        isRefreshingQuota = false
-        quotaRefreshError = nil
         loginError = nil
         health = SectionState()
         keeperStatus = SectionState()
@@ -262,9 +259,8 @@ final class MonitorViewModel: ObservableObject {
         authFiles = SectionState()
         providers = SectionState()
         quotaCache = SectionState()
-        eventsPageGeneration += 1
-        isLoadingMoreEvents = false
         eventsLoadMoreError = nil
+        lastUpdatedAt = nil
     }
 
     func beginConnectionStateChange() -> Int {
@@ -290,5 +286,9 @@ final class MonitorViewModel: ObservableObject {
     }
     func isCurrent(_ generation: Int) -> Bool {
         generation == connectionGeneration
+    }
+
+    func markUpdated() {
+        lastUpdatedAt = .now
     }
 }

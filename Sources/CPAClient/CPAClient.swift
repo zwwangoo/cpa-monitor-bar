@@ -11,9 +11,13 @@ public final class CPAClient: @unchecked Sendable {
     private let policy: CPARequestPolicy
 
     public convenience init(baseURL: String) throws {
+        self.init(root: try CPAServiceRoot(baseURL))
+    }
+
+    public convenience init(root: CPAServiceRoot) {
         let cookieStore = SessionCookieStore()
         self.init(
-            root: try CPAServiceRoot(baseURL),
+            root: root,
             session: cookieStore.makeSession(),
             cookieStore: cookieStore
         )
@@ -57,12 +61,10 @@ public final class CPAClient: @unchecked Sendable {
     public func analysis(range: UsageTimeRange = .today) async throws -> UsageAnalysisResponse {
         let value: UsageAnalysisResponse = try await fetch(.analysis, usageRange: range)
         try validateListCounts([
-            value.tokenUsage.count,
             value.apiKeyComposition.count,
             value.modelComposition.count,
             value.authFilesComposition.count,
             value.aiProviderComposition.count,
-            value.modelEfficiency.count,
         ])
         return value
     }

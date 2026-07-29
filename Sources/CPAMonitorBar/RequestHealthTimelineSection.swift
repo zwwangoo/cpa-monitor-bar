@@ -196,11 +196,12 @@ private struct RequestHealthGrid: View {
     private func cell(at index: Int, size: CGFloat) -> some View {
         if presentation.blocks.indices.contains(index) {
             let block = presentation.blocks[index]
+            let details = tooltip(for: block)
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(color(for: block))
                 .frame(width: size, height: size)
-                .help(tooltip(for: block))
-                .accessibilityLabel(tooltip(for: block))
+                .help(details)
+                .accessibilityLabel(details)
         } else {
             Color.clear.frame(width: size, height: size)
         }

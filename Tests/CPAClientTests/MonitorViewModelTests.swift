@@ -77,6 +77,7 @@ final class MonitorViewModelTests: XCTestCase {
         XCTAssertNil(model.overview.value)
         XCTAssertNil(model.analysis.value)
         XCTAssertNil(model.activity.value)
+        XCTAssertNotNil(model.lastUpdatedAt)
         XCTAssertEqual(newCalls, [.health, .session])
     }
 
@@ -202,6 +203,7 @@ final class MonitorViewModelTests: XCTestCase {
         XCTAssertEqual(model.authFiles.value?.identities.first?.identity, "auth-1")
         XCTAssertEqual(model.providers.value?.identities.count, 0)
         XCTAssertEqual(model.quotaCache.value?.items.count, 0)
+        XCTAssertNotNil(model.lastUpdatedAt)
         XCTAssertTrue(calls.contains(.events))
         XCTAssertTrue(calls.contains(.activity))
         XCTAssertTrue(calls.contains(.version))
@@ -214,7 +216,7 @@ final class MonitorViewModelTests: XCTestCase {
         )
     }
 
-    func testLoadMoreEventsAppendsUniqueEventsAndStopsAtLastPage() async {
+    func testLoadMoreEventsAppendsUniqueEventsAndStopsAtLastPage() async throws {
         let client = CountingClient(
             authenticated: true,
             eventResponseBodies: [
@@ -228,6 +230,8 @@ final class MonitorViewModelTests: XCTestCase {
         )
         let model = dependencies.makeModel()
         await model.start()
+        let initialUpdatedAt = model.lastUpdatedAt
+        try await Task.sleep(for: .milliseconds(1))
 
         XCTAssertTrue(model.canLoadMoreEvents)
         await model.loadMoreEvents()
@@ -238,6 +242,10 @@ final class MonitorViewModelTests: XCTestCase {
         XCTAssertEqual(model.events.value?.page, 2)
         XCTAssertFalse(model.canLoadMoreEvents)
         XCTAssertEqual(requestedPages, [1, 2])
+        XCTAssertGreaterThan(
+            try XCTUnwrap(model.lastUpdatedAt),
+            try XCTUnwrap(initialUpdatedAt)
+        )
     }
 
 }

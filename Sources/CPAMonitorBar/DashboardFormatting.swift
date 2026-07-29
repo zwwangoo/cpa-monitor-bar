@@ -1,6 +1,14 @@
 import Foundation
 import CPAModels
 
+private let dashboardFractionalDateFormatter: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+}()
+
+private let dashboardDateFormatter = ISO8601DateFormatter()
+
 func compactInteger(_ value: Int?) -> String {
     value?.formatted(.number.notation(.compactName)) ?? "—"
 }
@@ -39,10 +47,8 @@ func quotaRemainingPercent(_ row: UsageQuotaRow) -> Double? {
 
 func dashboardShortTime(_ rawValue: String?) -> String {
     guard let rawValue else { return "—" }
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    let date = formatter.date(from: rawValue)
-        ?? ISO8601DateFormatter().date(from: rawValue)
+    let date = dashboardFractionalDateFormatter.date(from: rawValue)
+        ?? dashboardDateFormatter.date(from: rawValue)
     return date?.formatted(date: .omitted, time: .shortened) ?? rawValue
 }
 

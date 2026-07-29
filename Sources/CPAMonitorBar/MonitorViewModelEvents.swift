@@ -42,7 +42,7 @@ extension MonitorViewModel {
                 requestedPage: nextPage,
                 defaultPageSize: Self.eventsPageSize
             )
-            events.updatedAt = .now
+            markUpdated()
             events.errorMessage = nil
         } catch {
             guard generation == eventsPageGeneration else { return }

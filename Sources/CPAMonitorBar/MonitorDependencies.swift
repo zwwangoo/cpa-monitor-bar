@@ -84,7 +84,6 @@ struct SectionState<Value: Sendable>: Sendable {
     var value: Value?
     var isLoading = false
     var errorMessage: String?
-    var updatedAt: Date?
 
     var isStale: Bool { value != nil && errorMessage != nil }
 }

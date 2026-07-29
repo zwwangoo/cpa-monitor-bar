@@ -1,14 +1,6 @@
 import Foundation
 
-enum CPARedirectPolicy {
-    static func shouldFollow(from source: URLRequest?, to target: URLRequest) -> Bool {
-        _ = source
-        _ = target
-        return false
-    }
-}
-
-private final class RejectingRedirectDelegate: NSObject, URLSessionTaskDelegate,
+final class RejectingRedirectDelegate: NSObject, URLSessionTaskDelegate,
     @unchecked Sendable {
     func urlSession(
         _ session: URLSession,
@@ -18,9 +10,10 @@ private final class RejectingRedirectDelegate: NSObject, URLSessionTaskDelegate,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
         _ = session
+        _ = task
         _ = response
-        let allowed = CPARedirectPolicy.shouldFollow(from: task.originalRequest, to: request)
-        completionHandler(allowed ? request : nil)
+        _ = request
+        completionHandler(nil)
     }
 }
 

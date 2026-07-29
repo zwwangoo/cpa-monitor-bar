@@ -87,7 +87,6 @@ private func renderIcon(size: Int) throws -> Data {
 private func generateAssets(in assetsDirectory: URL) throws {
     let fileManager = FileManager.default
     try fileManager.createDirectory(at: assetsDirectory, withIntermediateDirectories: true)
-    try renderIcon(size: 1024).write(to: assetsDirectory.appendingPathComponent("AppIcon.png"))
 
     let temporaryRoot = fileManager.temporaryDirectory
         .appendingPathComponent("cpa-monitor-icon-\(UUID().uuidString)")
@@ -124,4 +123,4 @@ private enum IconError: Error {
 
 let output = CommandLine.arguments.dropFirst().first ?? "Assets"
 try generateAssets(in: URL(fileURLWithPath: output, isDirectory: true))
-print("Generated \(output)/AppIcon.png and \(output)/AppIcon.icns")
+print("Generated \(output)/AppIcon.icns")

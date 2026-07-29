@@ -40,7 +40,7 @@ final class MonitorViewModelQuotaRefreshTests: XCTestCase {
         XCTAssertNotNil(model.quotaRefreshError)
     }
 
-    func testPollsAcceptedTasksAndReloadsCache() async {
+    func testPollsAcceptedTasksAndReloadsCache() async throws {
         let refreshedCache = #"{"items":[{"auth_index":"auth-1","status":"completed","quota":{"quota":[{"key":"5h","remainingFraction":0.9}]}}]}"#
         let client = CountingClient(
             authenticated: true,
@@ -58,6 +58,8 @@ final class MonitorViewModelQuotaRefreshTests: XCTestCase {
             clients: [client]
         ).makeModel()
         await model.start()
+        let initialUpdatedAt = model.lastUpdatedAt
+        try await Task.sleep(for: .milliseconds(1))
 
         model.refreshQuota(authIndexes: ["auth-1", "auth-1", " "])
         let finished = await eventually { !model.isRefreshingQuota }
@@ -68,6 +70,10 @@ final class MonitorViewModelQuotaRefreshTests: XCTestCase {
         XCTAssertEqual(calls.filter { $0 == .quotaRefreshStatus("auth-1") }.count, 2)
         XCTAssertEqual(model.quotaCache.value?.items.first?.authIndex, "auth-1")
         XCTAssertEqual(model.quotaRefreshError, "1 个账号刷新失败")
+        XCTAssertGreaterThan(
+            try XCTUnwrap(model.lastUpdatedAt),
+            try XCTUnwrap(initialUpdatedAt)
+        )
     }
 
     func testConnectionStateChangeStopsPollingWithoutAnotherRequest() async throws {

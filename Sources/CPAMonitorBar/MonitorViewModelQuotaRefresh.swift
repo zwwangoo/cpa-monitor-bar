@@ -127,7 +127,7 @@ extension MonitorViewModel {
         case let .success(response):
             quotaCache.value = response
             quotaCache.errorMessage = nil
-            quotaCache.updatedAt = .now
+            markUpdated()
         case let .failure(error):
             quotaCache.errorMessage = error.localizedDescription
         }

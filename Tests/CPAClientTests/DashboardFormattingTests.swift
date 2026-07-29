@@ -129,8 +129,8 @@ final class DashboardFormattingTests: XCTestCase {
             [.all, .claude, .codex, .geminiCLI]
         )
         XCTAssertEqual(
-            filterAuthFiles(identities, matching: .codex).compactMap(\.fileName),
-            ["codex.json"]
+            filterAuthFiles(identities, matching: .codex).map(\.id),
+            ["1"]
         )
     }
 

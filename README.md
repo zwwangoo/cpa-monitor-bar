@@ -104,6 +104,8 @@ scripts/                图标生成、Universal 2 构建与 DMG 校验
 swift scripts/generate-app-icon.swift Assets
 ```
 
+脚本仅生成打包使用的 `Assets/AppIcon.icns`。
+
 ## 打包测试版本
 
 项目根目录的 [`VERSION`](VERSION) 是应用短版本号的唯一来源。默认构建号为 `1`，也可通过 `BUILD_NUMBER` 覆盖：

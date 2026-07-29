@@ -14,11 +14,34 @@ final class CPAClientSecurityTests: XCTestCase {
         XCTAssertFalse(session.configuration.httpShouldSetCookies)
     }
 
-    func testRedirectPolicyRejectsEveryRedirect() throws {
+    func testSessionDelegateRejectsEveryRedirect() throws {
         let source = URLRequest(url: try XCTUnwrap(URL(string: "https://example.test/cpa/healthz")))
         let target = URLRequest(url: try XCTUnwrap(URL(string: "https://example.test/cpa/healthz")))
+        let response = try XCTUnwrap(HTTPURLResponse(
+            url: try XCTUnwrap(source.url),
+            statusCode: 302,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Location": try XCTUnwrap(target.url).absoluteString]
+        ))
+        let session = URLSession(configuration: .ephemeral)
+        let task = session.dataTask(with: source)
+        var proposedRequest: URLRequest?
+        var completionCalled = false
 
-        XCTAssertFalse(CPARedirectPolicy.shouldFollow(from: source, to: target))
+        RejectingRedirectDelegate().urlSession(
+            session,
+            task: task,
+            willPerformHTTPRedirection: response,
+            newRequest: target
+        ) {
+            completionCalled = true
+            proposedRequest = $0
+        }
+
+        XCTAssertTrue(completionCalled)
+        XCTAssertNil(proposedRequest)
+        task.cancel()
+        session.invalidateAndCancel()
     }
 
     func testResponseLargerThanLimitIsRejected() async throws {

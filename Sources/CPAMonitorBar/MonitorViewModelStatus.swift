@@ -12,22 +12,6 @@ extension MonitorViewModel {
         return "运行中"
     }
 
-    var lastUpdatedAt: Date? {
-        [
-            health.updatedAt,
-            keeperStatus.updatedAt,
-            keeperVersion.updatedAt,
-            overview.updatedAt,
-            analysis.updatedAt,
-            events.updatedAt,
-            authFiles.updatedAt,
-            providers.updatedAt,
-            quotaCache.updatedAt,
-        ]
-        .compactMap { $0 }
-        .max()
-    }
-
     var statusSymbol: String {
         if configurationState == .unconfigured { return "gear.badge.questionmark" }
         if health.errorMessage != nil

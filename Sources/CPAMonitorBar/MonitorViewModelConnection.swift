@@ -19,7 +19,6 @@ extension MonitorViewModel {
                 )
             }
         }
-        connectionGeneration += 1
         resetConnectionState()
         client = clientFactory(root)
         credentialStore = credentialStoreFactory(root)
