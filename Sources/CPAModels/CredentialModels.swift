@@ -79,6 +79,7 @@ public struct UsageIdentity: Decodable, Identifiable, Sendable {
 
 public struct UsageIdentitiesPageResponse: Decodable, Sendable {
     public let identities: [UsageIdentity]
+    public let hasAuthoritativeIdentities: Bool
 
     enum CodingKeys: CodingKey {
         case identities
@@ -86,6 +87,11 @@ public struct UsageIdentitiesPageResponse: Decodable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        if values.contains(.identities) {
+            hasAuthoritativeIdentities = try !values.decodeNil(forKey: .identities)
+        } else {
+            hasAuthoritativeIdentities = false
+        }
         identities = try values.decodeIfPresent([UsageIdentity].self, forKey: .identities) ?? []
     }
 }

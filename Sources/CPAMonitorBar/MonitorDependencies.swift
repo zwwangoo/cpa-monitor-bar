@@ -121,7 +121,3 @@ func resolvePassword(
     }
     return stored
 }
-
-func credentialAccount(for root: CPAServiceRoot) -> String {
-    "administrator-password:\(root.url.absoluteString)"
-}

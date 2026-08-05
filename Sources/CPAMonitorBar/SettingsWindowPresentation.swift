@@ -37,6 +37,19 @@ func bringSettingsToFront() {
     guard let window = settingsWindowCandidate(in: NSApp.windows) else { return }
     window.makeKeyAndOrderFront(nil)
     window.orderFrontRegardless()
+    endSettingsTextEditing(in: window)
+}
+
+@MainActor
+@discardableResult
+func endSettingsTextEditing() -> Bool {
+    endSettingsTextEditing(in: NSApp.keyWindow)
+}
+
+@MainActor
+@discardableResult
+func endSettingsTextEditing(in window: NSWindow?) -> Bool {
+    window?.makeFirstResponder(nil) ?? false
 }
 
 @MainActor

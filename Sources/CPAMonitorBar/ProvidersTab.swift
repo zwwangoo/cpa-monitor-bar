@@ -3,6 +3,7 @@ import CPAModels
 
 struct ProvidersTab: View {
     let providers: SectionState<UsageIdentitiesPageResponse>
+    let usageStates: [String: ProviderUsageState]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,6 +25,10 @@ struct ProvidersTab: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(preferredText(identity.displayName, identity.provider, identity.name))
                 .font(.caption.weight(.semibold))
+            if let usageState = usageStates[identity.id] {
+                ProviderUsageSummaryView(state: usageState)
+                Divider().opacity(0.55)
+            }
             CredentialHealthTrend(health: identity.credentialHealth)
         }
     }

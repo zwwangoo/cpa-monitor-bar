@@ -54,6 +54,27 @@ final class SettingsWindowPresentationTests: XCTestCase {
 
         XCTAssertTrue(candidate === settingsWindow)
     }
+
+    func testBringingSettingsForwardReleasesExistingTextFieldFocus() throws {
+        let settingsWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 120),
+            styleMask: .titled,
+            backing: .buffered,
+            defer: false
+        )
+        let textField = NSSecureTextField(
+            frame: NSRect(x: 20, y: 20, width: 160, height: 24)
+        )
+        settingsWindow.contentView?.addSubview(textField)
+        settingsWindow.orderFront(nil)
+        defer { settingsWindow.orderOut(nil) }
+        XCTAssertTrue(settingsWindow.makeFirstResponder(textField))
+        XCTAssertTrue(settingsWindow.firstResponder is NSTextView)
+
+        bringSettingsToFront()
+
+        XCTAssertFalse(settingsWindow.firstResponder is NSTextView)
+    }
 }
 
 @MainActor

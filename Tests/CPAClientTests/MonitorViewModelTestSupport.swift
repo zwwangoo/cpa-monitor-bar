@@ -11,13 +11,21 @@ final class Dependencies {
     let launchAtLoginController: RecordingLaunchAtLoginController
     let credentialFactory: CredentialFactoryRecorder
     let clientFactory: ClientFactoryRecorder
+    let providerUsageConfigurationStore: RecordingProviderUsageConfigurationStore
+    let providerUsageCredentialStore: MemoryProviderUsageCredentialStore
+    let providerUsageMonitor: any ProviderUsageMonitoring
 
     init(
         savedURL: String?,
         clients: [CountingClient] = [],
         preferences: MonitorPreferences = MonitorPreferences(),
         launchAtLogin: Bool = false,
-        savedPassword: String? = nil
+        savedPassword: String? = nil,
+        providerUsageConfigurations: [ProviderUsageConfiguration] = [],
+        providerUsageConfigurationFails: Bool = false,
+        providerUsageKeys: [String: String] = [:],
+        providerUsageCredentialUpdateFails: Bool = false,
+        providerUsageMonitor: (any ProviderUsageMonitoring)? = nil
     ) {
         baseURLStore = MemoryBaseURLStore(baseURL: savedURL)
         preferencesStore = MemoryMonitorPreferencesStore(preferences: preferences)
@@ -25,6 +33,15 @@ final class Dependencies {
         launchAtLoginController = RecordingLaunchAtLoginController(isEnabled: launchAtLogin)
         credentialFactory = CredentialFactoryRecorder(savedPassword: savedPassword)
         clientFactory = ClientFactoryRecorder(clients: clients)
+        providerUsageConfigurationStore = RecordingProviderUsageConfigurationStore(
+            values: providerUsageConfigurations,
+            shouldFail: providerUsageConfigurationFails
+        )
+        providerUsageCredentialStore = MemoryProviderUsageCredentialStore(
+            keys: providerUsageKeys,
+            shouldFailUpdate: providerUsageCredentialUpdateFails
+        )
+        self.providerUsageMonitor = providerUsageMonitor ?? RecordingProviderUsageMonitor()
     }
 
     func makeModel(
@@ -38,9 +55,126 @@ final class Dependencies {
             launchAtLoginController: launchAtLoginController,
             credentialStoreFactory: credentialFactory.makeStore,
             clientFactory: clientFactory.makeClient,
+            providerUsageConfigurationStore: providerUsageConfigurationStore,
+            providerUsageCredentialStore: providerUsageCredentialStore,
+            providerUsageMonitor: providerUsageMonitor,
             pollingInterval: pollingInterval,
             quotaRefreshPollingInterval: quotaRefreshPollingInterval
         )
+    }
+}
+
+final class RecordingProviderUsageConfigurationStore:
+    ProviderUsageConfigurationStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValues: [ProviderUsageConfiguration]
+    private let shouldFail: Bool
+
+    init(values: [ProviderUsageConfiguration], shouldFail: Bool = false) {
+        storedValues = values
+        self.shouldFail = shouldFail
+    }
+
+    func load(keeperRoot: String) throws -> [ProviderUsageConfiguration] {
+        _ = keeperRoot
+        if shouldFail {
+            throw ProviderUsageConfigurationStorageError.corruptedData
+        }
+        return lock.withLock { storedValues }
+    }
+
+    func save(
+        _ values: [ProviderUsageConfiguration],
+        keeperRoot: String
+    ) throws {
+        _ = keeperRoot
+        if shouldFail {
+            throw ProviderUsageConfigurationStorageError.corruptedData
+        }
+        lock.withLock { storedValues = values }
+    }
+}
+
+actor RecordingProviderUsageMonitor: ProviderUsageMonitoring {
+    struct Request: Equatable {
+        let keeperRoot: String
+        let providerIDs: [String]
+    }
+
+    private(set) var requests: [Request] = []
+    private(set) var validationKeys: [String] = []
+    var responses: [[String: ProviderUsageRefreshResult]]
+    private let validationResult: Result<
+        ProviderUsageSnapshot,
+        ProviderUsageError
+    >
+
+    init(
+        responses: [[String: ProviderUsageRefreshResult]] = [],
+        validationResult: Result<ProviderUsageSnapshot, ProviderUsageError> =
+            .failure(.serviceUnavailable)
+    ) {
+        self.responses = responses
+        self.validationResult = validationResult
+    }
+
+    func refresh(
+        keeperRoot: String,
+        providerIDs: [String]
+    ) -> [String: ProviderUsageRefreshResult] {
+        requests.append(Request(keeperRoot: keeperRoot, providerIDs: providerIDs))
+        return responses.isEmpty ? [:] : responses.removeFirst()
+    }
+
+    func validate(
+        configuration: ProviderUsageConfiguration,
+        key: String
+    ) async throws -> ProviderUsageSnapshot {
+        _ = configuration
+        validationKeys.append(key)
+        return try validationResult.get()
+    }
+}
+
+actor SuspendingProviderUsageMonitor: ProviderUsageMonitoring {
+    private var continuation: CheckedContinuation<
+        [String: ProviderUsageRefreshResult], Never
+    >?
+    private let response: [String: ProviderUsageRefreshResult]
+    private(set) var requestCount = 0
+    private(set) var cancellationCount = 0
+
+    init(response: [String: ProviderUsageRefreshResult]) {
+        self.response = response
+    }
+
+    func refresh(
+        keeperRoot: String,
+        providerIDs: [String]
+    ) async -> [String: ProviderUsageRefreshResult] {
+        _ = keeperRoot
+        _ = providerIDs
+        requestCount += 1
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation = $0 }
+        } onCancel: {
+            Task { await self.cancelPendingRequest() }
+        }
+    }
+
+    func validate(
+        configuration: ProviderUsageConfiguration,
+        key: String
+    ) async throws -> ProviderUsageSnapshot {
+        _ = configuration
+        _ = key
+        throw ProviderUsageError.serviceUnavailable
+    }
+
+    private func cancelPendingRequest() {
+        cancellationCount += 1
+        continuation?.resume(returning: response)
+        continuation = nil
     }
 }
 
@@ -161,6 +295,7 @@ actor CountingClient: CPAServiceClient {
     private let quotaRefreshError: CPAClientError?
     private var quotaRefreshTaskBodies: [String: [String]]
     private var quotaCacheResponseBodies: [String]
+    private let providerResponseBody: String
 
     init(
         authenticated: Bool = false,
@@ -172,7 +307,8 @@ actor CountingClient: CPAServiceClient {
         quotaRefreshBatchBody: String = #"{"tasks":[],"rejected":[]}"#,
         quotaRefreshError: CPAClientError? = nil,
         quotaRefreshTaskBodies: [String: [String]] = [:],
-        quotaCacheResponseBodies: [String] = []
+        quotaCacheResponseBodies: [String] = [],
+        providerResponseBody: String = #"{"identities":[]}"#
     ) {
         self.authenticated = authenticated
         remainingHealthErrors = healthError.map { [$0] } ?? []
@@ -184,6 +320,7 @@ actor CountingClient: CPAServiceClient {
         self.quotaRefreshError = quotaRefreshError
         self.quotaRefreshTaskBodies = quotaRefreshTaskBodies
         self.quotaCacheResponseBodies = quotaCacheResponseBodies
+        self.providerResponseBody = providerResponseBody
     }
 
     func health() async throws -> HealthResponse {
@@ -244,7 +381,7 @@ actor CountingClient: CPAServiceClient {
 
     func providers() async throws -> UsageIdentitiesPageResponse {
         calls.append(.providers)
-        return try decode(#"{"identities":[]}"#)
+        return try decode(providerResponseBody)
     }
 
     func quotaCache(authIndexes: [String]) async throws -> UsageQuotaCacheResponse {

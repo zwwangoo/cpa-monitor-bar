@@ -30,6 +30,7 @@ final class MonitorViewModel: ObservableObject {
     @Published var eventsLoadMoreError: String?
     @Published private(set) var authFiles = SectionState<UsageIdentitiesPageResponse>()
     @Published private(set) var providers = SectionState<UsageIdentitiesPageResponse>()
+    @Published var providerUsageStates: [String: ProviderUsageState] = [:]
     @Published var quotaCache = SectionState<UsageQuotaCacheResponse>()
     @Published var isRefreshingQuota = false
     @Published var quotaRefreshError: String?
@@ -42,11 +43,16 @@ final class MonitorViewModel: ObservableObject {
     private let launchAtLoginController: any LaunchAtLoginControlling
     let credentialStoreFactory: CredentialStoreFactory
     let clientFactory: CPAServiceClientFactory
+    let providerUsageConfigurationStore: any ProviderUsageConfigurationStoring
+    let providerUsageCredentialStore: any ProviderUsageCredentialStoring
+    let providerUsageMonitor: any ProviderUsageMonitoring
     let pollingIntervalOverride: Duration?
     let quotaRefreshPollingInterval: Duration
     var pollingTask: Task<Void, Never>?
     var quotaRefreshTask: Task<Void, Never>?
+    var providerUsageTask: Task<[String: ProviderUsageRefreshResult], Never>?
     var connectionGeneration = 0
+    var providerUsageRefreshGeneration = 0
     var started = false
     var eventsPageGeneration = 0
     init(
@@ -56,11 +62,19 @@ final class MonitorViewModel: ObservableObject {
             UserDefaultsInsecureHTTPConsentStore(),
         launchAtLoginController: (any LaunchAtLoginControlling)? = nil,
         credentialStoreFactory: @escaping CredentialStoreFactory = { root in
-            KeychainCredentialStore(account: credentialAccount(for: root))
+            LocalAdministratorCredentialStore(
+                vault: .shared,
+                keeperRoot: root.url.absoluteString
+            )
         },
         clientFactory: @escaping CPAServiceClientFactory = { root in
             CPAClient(root: root)
         },
+        providerUsageConfigurationStore: any ProviderUsageConfigurationStoring =
+            UserDefaultsProviderUsageConfigurationStore(),
+        providerUsageCredentialStore: any ProviderUsageCredentialStoring =
+            LocalProviderUsageCredentialStore(vault: .shared),
+        providerUsageMonitor: (any ProviderUsageMonitoring)? = nil,
         pollingInterval: Duration? = nil,
         quotaRefreshPollingInterval: Duration = .seconds(5)
     ) {
@@ -72,6 +86,12 @@ final class MonitorViewModel: ObservableObject {
         self.launchAtLoginController = launchController
         self.credentialStoreFactory = credentialStoreFactory
         self.clientFactory = clientFactory
+        self.providerUsageConfigurationStore = providerUsageConfigurationStore
+        self.providerUsageCredentialStore = providerUsageCredentialStore
+        self.providerUsageMonitor = providerUsageMonitor ?? ProviderUsageMonitor(
+            configurationStore: providerUsageConfigurationStore,
+            credentialStore: providerUsageCredentialStore
+        )
         pollingIntervalOverride = pollingInterval
         self.quotaRefreshPollingInterval = quotaRefreshPollingInterval
         usageRange = preferences.usageRange
@@ -96,6 +116,7 @@ final class MonitorViewModel: ObservableObject {
     deinit {
         pollingTask?.cancel()
         quotaRefreshTask?.cancel()
+        providerUsageTask?.cancel()
     }
     func start() async {
         guard !started, client != nil else { return }
@@ -178,6 +199,13 @@ final class MonitorViewModel: ObservableObject {
         apply(results.6, to: &self.authFiles)
         apply(results.7, to: &self.providers)
         await refreshQuotaCache(using: activeClient, authFiles: results.6, generation: generation)
+        if case let .success(providerResponse) = results.7 {
+            await refreshProviderUsage(
+                using: providerResponse,
+                generation: generation
+            )
+        }
+        guard isCurrent(generation) else { return }
         isRefreshing = false
     }
 
@@ -258,6 +286,7 @@ final class MonitorViewModel: ObservableObject {
         events = SectionState()
         authFiles = SectionState()
         providers = SectionState()
+        providerUsageStates = [:]
         quotaCache = SectionState()
         eventsLoadMoreError = nil
         lastUpdatedAt = nil
@@ -267,6 +296,10 @@ final class MonitorViewModel: ObservableObject {
         connectionGeneration += 1
         quotaRefreshTask?.cancel()
         quotaRefreshTask = nil
+        providerUsageTask?.cancel()
+        providerUsageTask = nil
+        providerUsageRefreshGeneration += 1
+        providerUsageStates = [:]
         isRefreshing = false
         isRefreshingQuota = false
         quotaRefreshError = nil

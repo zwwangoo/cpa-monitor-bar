@@ -146,17 +146,6 @@ final class MonitorViewModelSettingsTests: XCTestCase {
         }
     }
 
-    func testCredentialAccountIncludesNormalizedKeeperURL() throws {
-        let first = try CPAServiceRoot("https://first.example/cpa/")
-        let second = try CPAServiceRoot("https://second.example")
-
-        XCTAssertEqual(
-            credentialAccount(for: first),
-            "administrator-password:https://first.example/cpa"
-        )
-        XCTAssertNotEqual(credentialAccount(for: first), credentialAccount(for: second))
-    }
-
     func testSuccessfulKeeperSwitchDeletesOldPassword() async throws {
         let oldClient = CountingClient(authenticated: true)
         let newClient = CountingClient(authenticated: false)

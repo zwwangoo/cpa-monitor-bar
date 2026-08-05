@@ -39,8 +39,10 @@ final class CredentialHealthTrendTests: XCTestCase {
         }
         """#)
 
-        XCTAssertEqual(credentialHealthTone(for: 1, in: health), .warning)
-        XCTAssertEqual(credentialHealthTone(for: 2, in: health), .warning)
+        XCTAssertEqual(
+            credentialHealthTones(health),
+            [.normal, .warning, .warning]
+        )
     }
 
     func testLowOverallSuccessRateUsesCriticalTone() throws {
@@ -53,7 +55,7 @@ final class CredentialHealthTrendTests: XCTestCase {
         }
         """#)
 
-        XCTAssertEqual(credentialHealthTone(for: 0, in: health), .critical)
+        XCTAssertEqual(credentialHealthTones(health), [.critical])
     }
 
     func testThreeConsecutiveCompleteFailuresEscalateToCritical() throws {
@@ -68,9 +70,10 @@ final class CredentialHealthTrendTests: XCTestCase {
         }
         """#)
 
-        XCTAssertEqual(credentialHealthTone(for: 0, in: health), .warning)
-        XCTAssertEqual(credentialHealthTone(for: 1, in: health), .warning)
-        XCTAssertEqual(credentialHealthTone(for: 2, in: health), .critical)
+        XCTAssertEqual(
+            credentialHealthTones(health),
+            [.warning, .warning, .critical]
+        )
     }
 
     func testHealthyAndIdleBucketsUseNonAlarmTones() throws {
@@ -84,8 +87,7 @@ final class CredentialHealthTrendTests: XCTestCase {
         }
         """#)
 
-        XCTAssertEqual(credentialHealthTone(for: 0, in: health), .idle)
-        XCTAssertEqual(credentialHealthTone(for: 1, in: health), .normal)
+        XCTAssertEqual(credentialHealthTones(health), [.idle, .normal])
     }
 
     func testTrendBarHeightUsesReducedTwentyFourPointCeiling() {

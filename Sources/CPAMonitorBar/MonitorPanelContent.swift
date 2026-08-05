@@ -152,7 +152,12 @@ struct MonitorPanelContent: View {
                 }
                 .scrollIndicators(.hidden)
             case .providers:
-                ScrollView { ProvidersTab(providers: model.providers) }
+                ScrollView {
+                    ProvidersTab(
+                        providers: model.providers,
+                        usageStates: model.providerUsageStates
+                    )
+                }
                     .scrollIndicators(.hidden)
             }
         }

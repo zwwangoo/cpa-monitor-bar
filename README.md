@@ -2,7 +2,7 @@
 
 CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控客户端。它把日常需要关注的使用概览、请求事件、认证文件限额和供应商健康情况压缩到一个轻量 Bar 窗口中，同时保留快速跳转到 Keeper Web 管理界面的入口。
 
-- 当前版本：`1.1.3`
+- 当前版本：`1.2.0`
 - 系统要求：macOS 26.5 及以上
 - 架构：Apple Silicon（arm64）与 Intel（x86_64）Universal 2
 - 技术栈：Swift、SwiftUI、Swift Package Manager
@@ -34,7 +34,7 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 - 使用汇总、Token 构成和成本信息。
 - 请求事件分页及 SSE / WS 类型、凭证、模型和延迟。
 - 已启用认证账号及 Keeper 已缓存的限额数据。
-- 供应商最近 5 小时请求健康趋势。
+- 供应商最近 5 小时请求健康趋势，以及可选的 Sub2API 余额或订阅额度。
 
 如果 `cpa-usage-keeper` 的接口路径或响应字段发生不兼容变化，本项目也需要同步适配。
 
@@ -45,7 +45,7 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 - **概览**：请求数、Token、成功率和总成本，固定 24 小时请求健康热力图，以及按模型、API Key、认证文件和 AI 提供商切换的 Token 占比。
 - **请求事件**：展示所选时间范围的请求总数、结果、时间、Key、凭证、模型、SSE / WS 类型和首字 / 总耗时；滚动到底部自动加载后续分页。
 - **认证文件**：按类型筛选启用中的认证账号，展示 Keeper 已缓存的限额和重置时间，不显示完整文件名或已停用凭证。
-- **供应商**：展示供应商名称和最近 5 小时健康趋势。
+- **供应商**：展示供应商名称和最近 5 小时健康趋势；配置 Sub2API 监控后，还会展示钱包余额、订阅日 / 周 / 月额度，或 API Key 总额度与 5h / 1d / 7d 限额。
 
 应用还支持：
 
@@ -56,20 +56,24 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 - 可在设置中配置无默认值的全局快捷键，用于在鼠标附近显示或收起监控窗口，无需辅助功能权限。
 - 开机自动启动。
 - 设置窗口前置、管理员密码配置和应用版本展示。
-- 启动后使用 Keychain 中已保存的密码自动恢复登录。
+- 启动后使用本地凭证配置中已保存的密码自动恢复登录。
 - 退出应用前先退出 Keeper 管理员会话。
 - HTTP 与 HTTPS Keeper 地址；远程 HTTP 首次连接前必须确认明文传输风险。
+- 每个 Keeper 供应商可独立配置 Sub2API 地址和监控 Key；未配置或未启用的供应商不会访问外部用量接口。
 
 ## 安全与数据边界
 
-- 管理员密码按规范化 Keeper URL 分别存入 macOS Keychain，不写入源码、配置文件或安装包。
-- 会话 Cookie 只在登录成功响应中接收，并保存在应用进程内存中；应用重启后使用 Keychain 密码重新登录。
+- 管理员密码与供应商监控 Key 明文保存在 `~/.cpamonitorbar/config.toml`；管理员密码按规范化 Keeper URL 隔离，供应商 Key 按 Keeper 地址和供应商 ID 隔离。
+- 应用创建的 `~/.cpamonitorbar` 目录权限为 `0700`，`config.toml` 文件权限为 `0600`，并拒绝符号链接、硬链接、错误所有者或过宽权限的文件。该文件仍是明文敏感配置，请勿同步、分享或提交到仓库。
+- 供应商 API 地址和启用状态等非敏感配置继续保存在 UserDefaults；凭证不会进入 UserDefaults、日志或界面回显。
+- 会话 Cookie 只在登录成功响应中接收，并保存在应用进程内存中；应用重启后使用本地凭证配置中的密码重新登录。
 - 除登录、退出登录、读取限额缓存和用户主动刷新额度所需的 POST 外，监控接口均为只读 GET。
 - 应用允许按认证文件主动刷新额度；额度重置、巡检和认证文件管理仍被拒绝。
 - 客户端包含明确的请求路径与 HTTP Method 白名单，并拒绝所有 HTTP 重定向，不开放任意管理 API 调用。
 - 单个响应限制为 8 MiB，主要列表和额度刷新任务均设置客户端安全上限。
 - 打包流程会扫描 DMG 内 App，确认没有 `CPA_PWD`、会话 Cookie 或 `.env` 等凭据标记。
 - HTTP 传输不加密，管理员密码和监控数据可能被同一网络中的第三方读取；远程 HTTP 仅应在可信网络中确认后使用，生产环境优先使用 HTTPS。
+- Sub2API 查询使用独立的临时网络会话，禁用 Cookie 与缓存、拒绝重定向、限制 10 秒超时和 2 MiB 响应；远程 HTTP 会以明文传输监控 Key，应仅配置可信网络中的地址。
 
 ## 安装与配置
 
@@ -77,7 +81,10 @@ CPA Monitor Bar 是为 `cpa-usage-keeper` 定向开发的 macOS 菜单栏监控�
 2. 启动菜单栏应用并打开“设置”。
 3. 填写 Keeper 根 URL，例如 `https://keeper.example/cpa`。
 4. 填写管理员密码，选择刷新频率、时间范围、全局快捷键和是否开机启动。
-5. 点击“应用并关闭”，应用会保存配置、登录并刷新监控数据。
+5. 如需余额监控，在“供应商用量”中展开 Keeper 返回的供应商，启用监控并分别填写 Sub2API API 地址与 Key；可先点击“验证连接”。
+6. 点击“应用并关闭”，应用会保存配置、登录并刷新监控数据。供应商 Key 输入框留空时会保留本地凭证配置中的原 Key；关闭某个供应商的监控并应用后会删除对应 Key。
+
+凭证配置不会读取或迁移旧版本保存在 macOS Keychain 中的数据。首次安装此版本后，请在设置中重新输入管理员密码和供应商监控 Key；如需清理旧项目，可在“钥匙串访问”中手动删除 CPAMonitorBar 相关条目。
 
 测试包使用 ad-hoc 签名，没有 Developer ID 签名或 Apple 公证。如果 Gatekeeper 阻止首次启动，请在 Finder 中右键选择“打开”，或前往“系统设置 → 隐私与安全性”确认打开；不要关闭 Gatekeeper。
 
@@ -93,7 +100,7 @@ swift test
 ```text
 Sources/CPAModels       Keeper 响应模型和兼容解码
 Sources/CPAClient       URL 规范化、请求白名单和 API 客户端
-Sources/CPAMonitorBar   菜单栏界面、状态管理、Keychain 与开机启动
+Sources/CPAMonitorBar   菜单栏界面、状态管理、本地凭证配置与开机启动
 Tests/CPAClientTests    客户端、模型、状态和格式化回归测试
 scripts/                图标生成、Universal 2 构建与 DMG 校验
 ```

@@ -12,8 +12,7 @@ let package = Package(
         .target(name: "CPAClient", dependencies: ["CPAModels"]),
         .executableTarget(
             name: "CPAMonitorBar",
-            dependencies: ["CPAModels", "CPAClient"],
-            linkerSettings: [.linkedFramework("Security")]
+            dependencies: ["CPAModels", "CPAClient"]
         ),
         .testTarget(
             name: "CPAClientTests",

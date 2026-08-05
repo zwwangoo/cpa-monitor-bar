@@ -82,14 +82,6 @@ enum CredentialHealthTone: Equatable {
     case critical
 }
 
-func credentialHealthTone(
-    for index: Int,
-    in health: UsageCredentialHealth
-) -> CredentialHealthTone {
-    let tones = credentialHealthTones(health)
-    return tones.indices.contains(index) ? tones[index] : .idle
-}
-
 func credentialHealthTones(_ health: UsageCredentialHealth) -> [CredentialHealthTone] {
     let overallCritical = credentialOverallSuccessRate(health).map {
         $0 < criticalSuccessRateThreshold
